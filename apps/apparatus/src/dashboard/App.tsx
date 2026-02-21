@@ -22,9 +22,11 @@ import { DrillConsole } from './components/dashboard/DrillConsole';
 import { SupplyChainConsole } from './components/dashboard/SupplyChainConsole';
 import { AutopilotConsole } from './components/dashboard/AutopilotConsole';
 import { GhostConsole } from './components/dashboard/GhostConsole';
+import { ListenersConsole } from './components/dashboard/ListenersConsole';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { HelpSearchModal } from './components/modals/HelpSearchModal';
 import { DocViewer } from './components/layout/DocViewer';
+import { DocumentationHub } from './components/docs/DocumentationHub';
 import { useState, useEffect } from 'react';
 
 function Layout() {
@@ -75,6 +77,8 @@ export default function App() {
         <ApparatusProvider>
           <DocViewerProvider>
             <Routes>
+              <Route path="docs" element={<DocumentationHub />} />
+              <Route path="docs/:docId" element={<DocumentationHub />} />
               <Route path="/" element={<Layout />}>
                 <Route index element={<Overview />} />
                 <Route path="traffic" element={<TrafficConsole />} />
@@ -93,6 +97,7 @@ export default function App() {
                 <Route path="autopilot" element={<AutopilotConsole />} />
                 <Route path="settings" element={<SettingsConsole />} />
                 <Route path="dependencies" element={<SupplyChainConsole />} />
+                <Route path="listeners" element={<ListenersConsole />} />
               </Route>
             </Routes>
           </DocViewerProvider>

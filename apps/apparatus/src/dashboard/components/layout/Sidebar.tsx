@@ -18,18 +18,22 @@ import {
   ChevronUp,
   ChevronDown,
   Ghost,
+  Server,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '../ui/cn';
 import { useApparatus } from '../../providers/ApparatusProvider';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
+  { path: '/docs', label: 'Docs Hub', icon: BookOpen },
   { path: '/traffic', label: 'Traffic', icon: Activity },
   { path: '/defense', label: 'Defense', icon: Shield },
   { path: '/deception', label: 'Deception', icon: FileWarning },
   { path: '/chaos', label: 'Chaos', icon: Zap },
   { path: '/cluster', label: 'Cluster', icon: Globe },
   { path: '/webhooks', label: 'Webhooks', icon: Webhook },
+  { path: '/listeners', label: 'Listeners', icon: Server },
   { path: '/mtd', label: 'MTD', icon: Key },
   { path: '/testing', label: 'Testing Lab', icon: FlaskConical },
   { path: '/dependencies', label: 'Supply Chain', icon: Network },
@@ -55,7 +59,7 @@ export function Sidebar() {
       {/* Brand */}
       <div className="h-14 flex items-center px-5 border-b border-neutral-800/40">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-[3px] bg-primary-500/8 border border-primary-500/40 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-[3px] bg-primary-500/8 border border-primary-500/40 flex items-center justify-center shadow-glow-primary">
             <span className="text-primary-400 font-bold font-display text-sm leading-none">A</span>
           </div>
           <span className="text-base font-display font-semibold text-neutral-200 tracking-wide uppercase">
