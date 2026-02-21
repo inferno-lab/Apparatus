@@ -51,7 +51,14 @@ export function HelpResults({ query, onSelect }: HelpResultsProps) {
   }, [query]);
 
   if (!query.trim()) {
-    return null;
+    return (
+      <CommandGroup heading="Help">
+        <div className="px-2 py-2 text-sm text-muted-foreground">
+          Type <span className="font-mono text-neutral-300">help &lt;topic&gt;</span>, e.g.{' '}
+          <span className="font-mono text-neutral-300">help chaos</span>
+        </div>
+      </CommandGroup>
+    );
   }
 
   if (loading) {
@@ -88,6 +95,7 @@ export function HelpResults({ query, onSelect }: HelpResultsProps) {
       {results.map((result) => (
         <CommandItem
           key={result.id}
+          value={`${result.id} ${result.title} ${result.category} ${query}`}
           onSelect={() => {
             onSelect?.(result.id);
           }}

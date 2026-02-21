@@ -10,7 +10,9 @@ import {
   Network,
   Fingerprint,
   Moon,
-  Sun
+  Sun,
+  Webhook,
+  Server
 } from "lucide-react"
 
 import {
@@ -34,9 +36,11 @@ export function CommandPalette() {
   const { toggleTheme } = useTheme()
   const { openDoc } = useDocViewer()
 
-  // Detect if user is searching help docs
-  const isHelpSearch = input.startsWith("/help")
-  const helpQuery = input.startsWith("/help ") ? input.slice(6) : ""
+  // Detect help-doc queries. cmdk can normalize punctuation, so support both:
+  // "help chaos" and "/help chaos".
+  const helpMatch = input.trimStart().match(/^\/?help(?:\s+(.*))?$/i)
+  const isHelpSearch = Boolean(helpMatch)
+  const helpQuery = helpMatch?.[1]?.trim() ?? ""
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -72,12 +76,12 @@ export function CommandPalette() {
       description="Search and run dashboard navigation and system commands."
     >
       <CommandInput
-        placeholder="Type a command or search... (try '/help chaos')"
+        placeholder="Type a command or search... (try 'help chaos')"
         value={input}
         onValueChange={setInput}
       />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        {!isHelpSearch && <CommandEmpty>No results found.</CommandEmpty>}
 
         {isHelpSearch && <HelpResults query={helpQuery} onSelect={handleHelpSelect} />}
 
@@ -111,6 +115,14 @@ export function CommandPalette() {
           <CommandItem onSelect={() => runCommand(() => navigate('/identity'))}>
             <Fingerprint className="mr-2 h-4 w-4" />
             <span>Identity Token Forge</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/webhooks'))}>
+            <Webhook className="mr-2 h-4 w-4" />
+            <span>Webhook Inspector</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/listeners'))}>
+            <Server className="mr-2 h-4 w-4" />
+            <span>Infrastructure Listeners</span>
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />

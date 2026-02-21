@@ -154,16 +154,19 @@ export function HelpSearchModal({ open, onOpenChange, onSelectDoc }: HelpSearchM
           </div>
         )}
 
-        <CommandEmpty className="py-12 text-center">
-            <p className="text-sm text-neutral-300">No documentation found for "{query}"</p>
-            <p className="text-xs text-muted-foreground mt-2 font-mono uppercase tracking-widest">Try searching for: chaos, scenarios, defense</p>
-        </CommandEmpty>
+        {query.trim() && (
+          <CommandEmpty className="py-12 text-center">
+              <p className="text-sm text-neutral-300">No documentation found for "{query}"</p>
+              <p className="text-xs text-muted-foreground mt-2 font-mono uppercase tracking-widest">Try searching for: chaos, scenarios, defense</p>
+          </CommandEmpty>
+        )}
 
         {!loading && results.length > 0 && (
           <CommandGroup heading={`Knowledge Base (${results.length} result${results.length !== 1 ? 's' : ''})`}>
             {results.map((result) => (
               <CommandItem
                 key={result.id}
+                value={`${result.id} ${result.title} ${result.category} ${query}`}
                 onSelect={() => handleSelect(result)}
                 className="flex flex-col items-start gap-1 py-4 px-4 cursor-pointer"
               >

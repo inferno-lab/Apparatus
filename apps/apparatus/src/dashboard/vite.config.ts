@@ -14,6 +14,10 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      '/api/docs-index': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8090',
         changeOrigin: true,

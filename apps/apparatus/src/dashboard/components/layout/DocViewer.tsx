@@ -3,6 +3,7 @@ import { X, BookOpen, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { MarkdownContent } from '../ui/MarkdownContent';
 import { cn } from '../ui/cn';
+import { loadDocsIndex } from '../../utils/docSearch';
 
 interface DocEntry {
   id: string;
@@ -33,25 +34,13 @@ export function DocViewer({ docId, onClose }: DocViewerProps) {
     setLoading(true);
     setError(null);
 
-    fetch('/api/docs-index')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return res.text();
-      })
-      .then((text) => {
-        try {
-          const docs = JSON.parse(text) as DocEntry[];
-          const found = docs.find((d) => d.id === docId);
-          if (found) {
-            setDoc(found);
-          } else {
-            setError('Document not found');
-          }
-        } catch (parseErr) {
-          console.error('JSON parse error:', text.substring(0, 100));
-          throw parseErr;
+    loadDocsIndex()
+      .then((docs) => {
+        const found = docs.find((d) => d.id === docId);
+        if (found) {
+          setDoc(found as DocEntry);
+        } else {
+          setError('Document not found');
         }
       })
       .catch((err) => {
