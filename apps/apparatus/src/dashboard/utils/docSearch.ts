@@ -19,17 +19,48 @@ interface SearchResult extends DocEntry {
 }
 
 let docsIndex: DocEntry[] | null = null;
+let docsIndexUrl: string | null = null;
+
+function getConfiguredBaseUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = window.localStorage.getItem('apparatus-base-url');
+    if (!stored) return null;
+    return stored.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
+}
+
+export function getDocsIndexUrl(): string {
+  // Prefer explicitly configured backend URL when present.
+  const configuredBase = getConfiguredBaseUrl();
+  if (configuredBase) {
+    return `${configuredBase}/api/docs-index`;
+  }
+
+  // Default path. In Vite dev, proxy config handles forwarding to backend.
+  return '/api/docs-index';
+}
 
 /**
  * Load docs index from JSON file via API endpoint
  */
 export async function loadDocsIndex(): Promise<DocEntry[]> {
-  if (docsIndex !== null) return docsIndex;
+  const url = getDocsIndexUrl();
+  if (docsIndex !== null && docsIndexUrl === url) return docsIndex;
 
   try {
-    const response = await fetch('/api/docs-index');
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to load docs index');
-    docsIndex = await response.json();
+
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload)) {
+      throw new Error('Invalid docs index payload');
+    }
+
+    docsIndex = payload as DocEntry[];
+    docsIndexUrl = url;
     return docsIndex as DocEntry[];
   } catch (error) {
     console.error('Failed to load docs index:', error);
@@ -108,7 +139,10 @@ export async function searchDocs(query: string): Promise<SearchResult[]> {
     }
 
     // Score content matches (lowest priority)
-    const contentScore = fuzzyScore(query, doc.excerpt);
+    // Use both excerpt and full content since excerpts may omit queried terms.
+    const excerptScore = fuzzyScore(query, doc.excerpt);
+    const fullContentScore = fuzzyScore(query, doc.content);
+    const contentScore = Math.max(excerptScore, fullContentScore);
     if (contentScore > 0 && score === 0) {
       score = contentScore;
       matchType = 'content';
