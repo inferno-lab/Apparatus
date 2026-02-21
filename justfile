@@ -39,23 +39,37 @@ repl:
 
 # Start live-reload dev stack in tmux via tx (session defaults to "aps")
 aps-dev-up session="aps":
-    @TMUX_SESSION={{session}} tx new server-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx new dashboard-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx interrupt server-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx interrupt dashboard-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/server dev"
-    @TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/dashboard dev"
-    @echo "Live reload started in tmux session '{{session}}': server-dev + dashboard-dev"
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if ! TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: server-dev( |$)'; then
+	TMUX_SESSION={{session}} tx new server-dev >/dev/null
+	fi
+	if ! TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: dashboard-dev( |$)'; then
+	TMUX_SESSION={{session}} tx new dashboard-dev >/dev/null
+	fi
+	TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/server dev"
+	TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/dashboard dev --force"
+	echo "Live reload started in tmux session '{{session}}': server-dev + dashboard-dev"
 
 # Show tx/tmux status for live-reload windows
 aps-dev-status session="aps":
-    @TMUX_SESSION={{session}} tx list
-    @echo ""
-    @echo "[server-dev]"
-    @TMUX_SESSION={{session}} tx read server-dev 20
-    @echo ""
-    @echo "[dashboard-dev]"
-    @TMUX_SESSION={{session}} tx read dashboard-dev 20
+	#!/usr/bin/env bash
+	set -euo pipefail
+	TMUX_SESSION={{session}} tx list
+	echo ""
+	echo "[server-dev]"
+	if TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: server-dev( |$)'; then
+	TMUX_SESSION={{session}} tx read server-dev 20
+	else
+	echo "(missing)"
+	fi
+	echo ""
+	echo "[dashboard-dev]"
+	if TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: dashboard-dev( |$)'; then
+	TMUX_SESSION={{session}} tx read dashboard-dev 20
+	else
+	echo "(missing)"
+	fi
 
 # Stop live-reload commands (keeps tmux windows)
 aps-dev-stop session="aps":
@@ -65,13 +79,17 @@ aps-dev-stop session="aps":
 
 # Restart live-reload commands in tmux
 aps-dev-restart session="aps":
-    @TMUX_SESSION={{session}} tx interrupt server-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx interrupt dashboard-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx new server-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx new dashboard-dev >/dev/null 2>&1 || true
-    @TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/server dev"
-    @TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/dashboard dev"
-    @echo "Live reload restarted in tmux session '{{session}}'"
+	#!/usr/bin/env bash
+	set -euo pipefail
+	if ! TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: server-dev( |$)'; then
+	TMUX_SESSION={{session}} tx new server-dev >/dev/null
+	fi
+	if ! TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: dashboard-dev( |$)'; then
+	TMUX_SESSION={{session}} tx new dashboard-dev >/dev/null
+	fi
+	TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/server dev"
+	TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/dashboard dev --force"
+	echo "Live reload restarted in tmux session '{{session}}'"
 
 # ── Test ─────────────────────────────────────────────────────
 
