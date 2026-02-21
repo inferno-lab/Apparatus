@@ -26,6 +26,9 @@ All notable changes to this project are documented in this file.
 - Legacy query-action controls remain for compatibility:
   - `GET /ghosts?action=start|stop`
   - Deprecated with server warning logs.
+- Reconciled `apps/apparatus/docs/plans/ai-red-team-plan.md` with current implementation:
+  - documents Autopilot as canonical red-team AI surface
+  - maps implemented vs pending scope from the original plan
 
 ### Security
 - Ghost mutation and traffic-control routes are now protected by `securityGate` (localhost-only unless `DEMO_MODE=true`):

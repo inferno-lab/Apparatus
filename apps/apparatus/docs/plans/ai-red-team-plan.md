@@ -3,6 +3,38 @@
 ## Overview
 A portable, autonomous agent that uses Generative AI to analyze API specifications (Swagger/OpenAPI) and runtime responses to synthesize contextual attack payloads, moving beyond static lists.
 
+## Reconciliation Status (2026-02-21)
+
+This plan has been partially implemented under the **Autopilot** surface.
+
+### Implemented in Codebase
+- Server endpoints are live under `/api/redteam/autopilot/*`:
+  - `GET /api/redteam/autopilot/config`
+  - `POST /api/redteam/autopilot/start`
+  - `POST /api/redteam/autopilot/stop`
+  - `POST /api/redteam/autopilot/kill`
+  - `GET /api/redteam/autopilot/status`
+  - `GET /api/redteam/autopilot/reports`
+- Core autonomous loop exists in `src/ai/redteam.ts`:
+  - telemetry capture (`analyze`)
+  - model-driven tool selection (`decide`)
+  - tool execution (`act`)
+  - post-action verification (`verify`)
+- Scope/safety rails are enforced for allowed tools and protected target paths.
+- Client and CLI surfaces exist for autopilot controls.
+
+### Still Missing from Original Plan
+- Standalone shared package extraction (`@apparatus/threat-intel-apparatus-redteam-ai`).
+- Swagger/OpenAPI attack-surface parser feeding the model prompt.
+- Orchestrator-level multi-agent integration.
+- Original naming surfaces:
+  - `POST /api/redteam/auto-attack`
+  - `apparatus redteam auto --target <url>`
+
+### Canonical Naming Decision
+- Current canonical surface is **Autopilot** (`/api/redteam/autopilot/*` and CLI `autopilot` command).
+- This plan remains the source for target architecture and remaining work.
+
 ## Architecture
 
 ### 1. Library Core (`@apparatus/threat-intel-apparatus-redteam-ai`)
@@ -55,10 +87,10 @@ interface AttackAttempt {
 
 ## Implementation Steps
 
-1.  **Refactor `src/ai/client.ts`**: Ensure it's robust enough to handle structured JSON output from LLMs (crucial for "function calling" style payload generation).
-2.  **Schema Parser**: Add a utility to parse `swagger.json` into a simplified "Attack Surface" prompt for the LLM.
-3.  **Feedback Loop**: Implement the `attack -> observe -> refine` loop. This is the "Agent" part.
-4.  **Safety Rails**: Ensure the agent respects a "Scope" (allowed domains) to prevent accidental attacks on real infrastructure.
+1.  `[~]` **Refactor `src/ai/client.ts`**: Structured parsing currently happens in `src/ai/redteam.ts`; client-level structured output contract is still pending.
+2.  `[ ]` **Schema Parser**: Add a utility to parse `swagger.json` into a simplified "Attack Surface" prompt for the LLM.
+3.  `[x]` **Feedback Loop**: `attack -> observe -> refine` style loop is implemented in Autopilot mission execution.
+4.  `[x]` **Safety Rails**: Tool scope and protected target path constraints are implemented.
 
 ## Example LLM Prompting Strategy
 
