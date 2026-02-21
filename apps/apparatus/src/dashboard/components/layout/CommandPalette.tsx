@@ -12,7 +12,8 @@ import {
   Moon,
   Sun,
   Webhook,
-  Server
+  Server,
+  BookOpen
 } from "lucide-react"
 
 import {
@@ -91,6 +92,10 @@ export function CommandPalette() {
           <CommandItem onSelect={() => runCommand(() => navigate('/'))}>
             <LayoutDashboard className="mr-2 h-4 w-4" />
             <span>Overview</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => navigate('/docs'))}>
+            <BookOpen className="mr-2 h-4 w-4" />
+            <span>Documentation Hub</span>
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => navigate('/traffic'))}>
             <Activity className="mr-2 h-4 w-4" />
