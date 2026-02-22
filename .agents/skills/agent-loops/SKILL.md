@@ -423,6 +423,22 @@ If P0/P1 gaps remain after 3 cycles, escalate to human with a summary of what's 
 
 After both loops exit, file issues for everything that was deferred.
 
+### Backlog-First Policy
+
+When filing deferred findings in this repository:
+
+- If a `backlog/` folder exists at repo root **and** Backlog tooling is available (Backlog MCP tools and/or Backlog CLI), use Backlog to create tracked issues/tasks.
+- Include enough context for another agent to execute without re-auditing:
+  - source review/audit artifact
+  - affected files/modules
+  - severity and user impact
+  - suggested fix direction
+  - acceptance criteria
+- If Backlog is not available, create a markdown handoff under `.agents/fixes/`.
+  - Prefer naming by replacing `review` with `fix` from the source artifact name (`s/review/fix/`).
+  - If no review artifact name exists, use a descriptive `*-fix.md` filename.
+- Implementers may also choose to fix deferred findings immediately instead of filing, when appropriate.
+
 ### Issue Template
 
 ```markdown
