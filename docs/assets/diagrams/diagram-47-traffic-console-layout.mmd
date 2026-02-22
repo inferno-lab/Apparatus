@@ -1,0 +1,11 @@
+flowchart LR
+    Controls["Traffic Controls\npause/clear/export"] --> Metrics["Traffic Stats\nthroughput + errors + latency"]
+    Metrics --> Filters["Filters + Search\nstatus groups + path query"]
+    Filters --> Feed["Request Feed\nmethod/path/status/latency"]
+    Feed --> Actions["Row Actions\nshow details + replay + block"]
+
+    style Controls fill:#1f365a
+    style Metrics fill:#2b4265
+    style Filters fill:#4a2f56
+    style Feed fill:#5f4a1d
+    style Actions fill:#1f4a45

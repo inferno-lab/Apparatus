@@ -1,0 +1,23 @@
+flowchart LR
+    Goal["What do you need to validate?"] --> G1{"Throughput / latency?"}
+    G1 -->|Yes| K6["Run k6 first"]
+    G1 -->|No| G2{"Known CVEs / config issues?"}
+    G2 -->|Yes| Nuclei["Run Nuclei templates"]
+    G2 -->|No| G3{"Custom payload behavior?"}
+    G3 -->|Yes| Fuzzer["Run Live Payload Fuzzer"]
+    G3 -->|No| Escape["Run Escape Artist\nfor egress validation"]
+
+    K6 --> Combine["Consolidate results"]
+    Nuclei --> Combine
+    Fuzzer --> Combine
+    Escape --> Combine
+
+    style Goal fill:#1f365a
+    style G1 fill:#2b4265
+    style G2 fill:#2b4265
+    style G3 fill:#2b4265
+    style K6 fill:#2b4265
+    style Nuclei fill:#5f4a1d
+    style Fuzzer fill:#4a2f56
+    style Escape fill:#1f4a45
+    style Combine fill:#5a2f45

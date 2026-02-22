@@ -1,0 +1,20 @@
+flowchart LR
+    Start["Testing Objective"] --> Perf["Performance Capacity\nk6 scenarios"]
+    Start --> Vuln["Known Vulnerability Coverage\nNuclei templates"]
+    Start --> Behavior["Endpoint Behavior Validation\nLive Payload Fuzzer"]
+    Start --> Egress["Outbound Control Validation\nEscape Artist"]
+
+    Perf --> Sequence["Recommended sequence\nBaseline -> scan -> fuzz -> egress"]
+    Vuln --> Sequence
+    Behavior --> Sequence
+    Egress --> Sequence
+
+    Sequence --> Report["Unified report\nfindings + remediation priority"]
+
+    style Start fill:#1f365a
+    style Perf fill:#2b4265
+    style Vuln fill:#5f4a1d
+    style Behavior fill:#4a2f56
+    style Egress fill:#1f4a45
+    style Sequence fill:#1f365a
+    style Report fill:#5a2f45

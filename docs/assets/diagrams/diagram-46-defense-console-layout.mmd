@@ -1,0 +1,9 @@
+flowchart LR
+    Top["Defense Controls\nadd rule + enable/disable"] --> Rules["Active Rule List\npatterns + edit/delete"]
+    Rules --> Stats["Defense Statistics\nblocked count + block rate"]
+    Stats --> Aux["Aux Panels\ntarpit status + rate limits + recent blocks"]
+
+    style Top fill:#1f365a
+    style Rules fill:#5f4a1d
+    style Stats fill:#2b4265
+    style Aux fill:#1f4a45

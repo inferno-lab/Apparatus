@@ -1,0 +1,9 @@
+flowchart LR
+    Status["Status + Blocked\n200/403/500 + defense outcome"] --> Headers["Response Headers\nrate limits + content type"]
+    Headers --> Body["Body Preview\nfirst 8KB"]
+    Body --> Size["Full Size + Latency\nbytes + round-trip time"]
+
+    style Status fill:#1f365a
+    style Headers fill:#2b4265
+    style Body fill:#4a2f56
+    style Size fill:#1f4a45
