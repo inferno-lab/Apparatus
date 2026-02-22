@@ -11,7 +11,6 @@ import { createPortal } from 'react-dom';
 import {
   Activity,
   BrainCircuit,
-  EyeOff,
   GripHorizontal,
   ShieldAlert,
 } from 'lucide-react';
@@ -19,6 +18,13 @@ import { useApparatus } from '../../providers/ApparatusProvider';
 import { useAutopilot } from '../../hooks/useAutopilot';
 import { useTrafficStream } from '../../hooks/useTrafficStream';
 import { cn } from '../ui/cn';
+import {
+  HUD_PREFERENCES_KEY,
+  HUD_STATE_CHANGED_EVENT,
+  HUD_VISIBILITY_KEY,
+  loadHudHiddenPreference,
+  type HudStateChangedDetail,
+} from './hudState';
 
 type WidgetId = 'stats' | 'thoughts';
 
@@ -30,8 +36,6 @@ interface WidgetPreference {
 
 type HudPreferences = Record<WidgetId, WidgetPreference>;
 
-const HUD_PREFERENCES_KEY = 'apparatus-dashboard-hud:v1';
-const HUD_VISIBILITY_KEY = 'apparatus-dashboard-hud:hidden';
 const TRAFFIC_WINDOW_MS = 15_000;
 const FALLBACK_SAMPLE_SIZE = 80;
 const KEYBOARD_MOVE_STEP = 12;
@@ -98,16 +102,6 @@ function loadPreferences(): HudPreferences {
   }
 }
 
-function loadHudHidden(): boolean {
-  try {
-    const stored = localStorage.getItem(HUD_VISIBILITY_KEY);
-    // Default to hidden (true) if not explicitly set
-    return stored === null ? true : stored === '1';
-  } catch {
-    return true; // Default to hidden
-  }
-}
-
 interface DragState {
   widgetId: WidgetId;
   offsetX: number;
@@ -120,7 +114,7 @@ export function HudOverlayLayer() {
   const { session } = useAutopilot();
   const [mounted, setMounted] = useState(false);
   const [preferences, setPreferences] = useState<HudPreferences | null>(null);
-  const [hudHidden, setHudHidden] = useState(false);
+  const [hudHidden, setHudHidden] = useState(true);
   const dragStateRef = useRef<DragState | null>(null);
   const preferencesRef = useRef<HudPreferences | null>(null);
 
@@ -153,62 +147,49 @@ export function HudOverlayLayer() {
   useEffect(() => {
     setMounted(true);
     setPreferences(loadPreferences());
-    setHudHidden(loadHudHidden());
+    setHudHidden(loadHudHiddenPreference());
   }, []);
 
-  // Listen for HUD visibility changes (e.g., from Sidebar toggle)
+  // Listen for HUD state changes (e.g., from Sidebar controls)
   useEffect(() => {
-    const handleHudVisibilityChange = (event: Event) => {
-      if (event instanceof CustomEvent) {
-        setHudHidden(event.detail.hidden);
-      }
-    };
-
-    const handleHudWidgetVisibilityChange = (event: Event) => {
+    const handleHudStateChange = (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
-      const detail = event.detail as { widgetId?: WidgetId; visible?: boolean };
-      if (!detail || !detail.widgetId || typeof detail.visible !== 'boolean') return;
-      const nextVisible = detail.visible;
-
-      if (detail.widgetId === 'stats') {
-        setPreferences((prev) => (prev
-          ? {
-              ...prev,
-              stats: {
-                ...prev.stats,
-                visible: nextVisible,
-              },
-            }
-          : prev
-        ));
-      } else {
-        setPreferences((prev) => (prev
-          ? {
-              ...prev,
-              thoughts: {
-                ...prev.thoughts,
-                visible: nextVisible,
-              },
-            }
-          : prev
-        ));
+      const detail = event.detail as Partial<HudStateChangedDetail>;
+      if (
+        !detail ||
+        typeof detail.hidden !== 'boolean' ||
+        typeof detail.statsVisible !== 'boolean' ||
+        typeof detail.thoughtsVisible !== 'boolean'
+      ) {
+        if (import.meta.env.DEV) {
+          console.warn('Ignoring invalid HUD state event payload', detail);
+        }
+        return;
       }
+      const nextHidden = detail.hidden;
+      const nextStatsVisible = detail.statsVisible;
+      const nextThoughtsVisible = detail.thoughtsVisible;
 
-      setHudHidden((currentHidden) => {
-        if (nextVisible) return false;
-        const currentPreferences = preferencesRef.current;
-        if (!currentPreferences) return currentHidden;
-        const otherWidgetId: WidgetId = detail.widgetId === 'stats' ? 'thoughts' : 'stats';
-        const otherVisible = currentPreferences[otherWidgetId].visible;
-        return otherVisible ? false : true;
-      });
+      setHudHidden(nextHidden);
+      setPreferences((prev) => (prev
+        ? {
+            ...prev,
+            stats: {
+              ...prev.stats,
+              visible: nextStatsVisible,
+            },
+            thoughts: {
+              ...prev.thoughts,
+              visible: nextThoughtsVisible,
+            },
+          }
+        : prev
+      ));
     };
 
-    window.addEventListener('hud-visibility-changed', handleHudVisibilityChange);
-    window.addEventListener('hud-widget-visibility-changed', handleHudWidgetVisibilityChange);
+    window.addEventListener(HUD_STATE_CHANGED_EVENT, handleHudStateChange);
     return () => {
-      window.removeEventListener('hud-visibility-changed', handleHudVisibilityChange);
-      window.removeEventListener('hud-widget-visibility-changed', handleHudWidgetVisibilityChange);
+      window.removeEventListener(HUD_STATE_CHANGED_EVENT, handleHudStateChange);
     };
   }, []);
 
@@ -233,17 +214,6 @@ export function HudOverlayLayer() {
       // localStorage unavailable
     }
   }, [hudHidden]);
-
-  useEffect(() => {
-    if (!preferences) return;
-    window.dispatchEvent(new CustomEvent('hud-preferences-changed', {
-      detail: {
-        hidden: hudHidden,
-        statsVisible: preferences.stats.visible,
-        thoughtsVisible: preferences.thoughts.visible,
-      },
-    }));
-  }, [preferences, hudHidden]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -320,16 +290,6 @@ export function HudOverlayLayer() {
     };
   }, [preferences]);
 
-  const setWidgetVisible = useCallback((widgetId: WidgetId, visible: boolean) => {
-    setPreferences((prev) => (prev
-      ? {
-          ...prev,
-          [widgetId]: { ...prev[widgetId], visible },
-        }
-      : prev
-    ));
-  }, []);
-
   const moveWidgetByDelta = useCallback((widgetId: WidgetId, dx: number, dy: number) => {
     setPreferences((prev) => {
       if (!prev) return prev;
@@ -389,14 +349,6 @@ export function HudOverlayLayer() {
               <GripHorizontal className="h-3 w-3" />
               HUD Stats
             </div>
-            <button
-              type="button"
-              onClick={() => setWidgetVisible('stats', false)}
-              className="text-neutral-400 hover:text-neutral-100 transition-colors"
-              aria-label="Hide HUD stats widget"
-            >
-              <EyeOff className="h-3.5 w-3.5" />
-            </button>
           </div>
 
           <div className="space-y-1.5 text-[11px] font-mono">
@@ -453,14 +405,6 @@ export function HudOverlayLayer() {
               <GripHorizontal className="h-3 w-3" />
               AI Thought Stream
             </div>
-            <button
-              type="button"
-              onClick={() => setWidgetVisible('thoughts', false)}
-              className="text-neutral-400 hover:text-neutral-100 transition-colors"
-              aria-label="Hide AI thought widget"
-            >
-              <EyeOff className="h-3.5 w-3.5" />
-            </button>
           </div>
 
           <div className="space-y-1.5">
