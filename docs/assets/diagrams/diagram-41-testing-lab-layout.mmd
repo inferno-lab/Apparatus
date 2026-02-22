@@ -1,0 +1,15 @@
+flowchart LR
+    Top["Live Payload Fuzzer\nRequest builder + send/reset"]
+    MidLeft["k6 Scenarios\nScenario selection + run"]
+    MidRight["Nuclei Templates\nTemplate selection + run"]
+    Bottom["Lab Operations Output\nCombined test telemetry"]
+
+    Top --> MidLeft
+    Top --> MidRight
+    MidLeft --> Bottom
+    MidRight --> Bottom
+
+    style Top fill:#1f365a
+    style MidLeft fill:#2b4265
+    style MidRight fill:#5f4a1d
+    style Bottom fill:#1f4a45

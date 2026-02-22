@@ -1,0 +1,9 @@
+flowchart LR
+    Target["Target Settings\nhost + port + method + path"] --> Inputs["Payload Inputs\nheaders + query + body"]
+    Inputs --> Controls["Execution Controls\ntimeout + send + reset"]
+    Controls --> Result["Response Capture\nstatus + blocked + latency + body"]
+
+    style Target fill:#1f365a
+    style Inputs fill:#4a2f56
+    style Controls fill:#5f4a1d
+    style Result fill:#1f4a45

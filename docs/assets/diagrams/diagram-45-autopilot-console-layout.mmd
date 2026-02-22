@@ -1,0 +1,11 @@
+flowchart LR
+    Header["Autopilot Status\nrun state + campaign id"] --> Controls["Campaign Controls\nstart/stop/clear/export"]
+    Controls --> History["Attack History\nvulnerable/blocked/timeouts"]
+    History --> Findings["Findings Summary\nvulnerability highlights"]
+    Findings --> Actions["Post-Run Actions\nexport findings + view report"]
+
+    style Header fill:#1f365a
+    style Controls fill:#2b4265
+    style History fill:#4a2f56
+    style Findings fill:#5f4a1d
+    style Actions fill:#1f4a45
