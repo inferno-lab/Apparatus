@@ -22,6 +22,8 @@ const badgeVariants = cva(
         warning: "border-transparent bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 border-yellow-500/20",
         info: "border-transparent bg-blue-500/15 text-blue-500 hover:bg-blue-500/25 border-blue-500/20",
         neon: "border-primary/50 bg-primary/10 text-primary shadow-[0_0_10px_rgba(0,240,255,0.2)]",
+        chip:
+          "border-ops-line bg-ops-panel-soft/85 text-ops-text-muted font-medium tracking-[0.12em] uppercase text-[10px] px-2 py-1",
       },
       size: { // Added size variant to support legacy API
           default: "",

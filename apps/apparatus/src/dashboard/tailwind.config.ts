@@ -50,6 +50,7 @@ const config = {
         info: colors.info,
         neutral: colors.neutral,
         surface: colors.surface,
+        ops: colors.ops,
       },
       fontFamily: {
         display: ['Recursive', 'Rajdhani', 'system-ui', 'sans-serif'],
