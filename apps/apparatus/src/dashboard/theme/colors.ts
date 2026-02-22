@@ -100,7 +100,31 @@ export const colors = {
     highlight: '#323C4D',
     panel: '#0A0C11',
     border: '#323C4D',
-  }
+  },
+
+  // Overview visual language tokens used across shared components/pages
+  ops: {
+    frame: '#151e30',
+    panel: '#0c111c',
+    'panel-soft': '#0b1320',
+    line: '#1a2740',
+    'text-strong': '#e8eef7',
+    'text-body': '#dce4ec',
+    'text-muted': '#8ca7c4',
+    'text-subtle': '#6d85a0',
+    'text-quiet': '#7f97b3',
+    accent: '#38a0ff',
+    'accent-alt': '#6cb4ff',
+    magenta: '#d946a8',
+    'accent-soft': '#9ec4ff',
+    'warning-soft': '#e5a820',
+    slate: '#4e6580',
+    rail: '#101927',
+    hover: '#12213a',
+    'source-border': '#1c3055',
+    'source-bg': '#0e1a2b',
+    'source-text': '#9fc6ff',
+  },
 } as const;
 
 export type Colors = typeof colors;

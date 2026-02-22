@@ -8,7 +8,8 @@ const cardVariants = cva(
     variants: {
       variant: {
         default: "bg-card text-card-foreground border-border shadow-sm",
-        panel: "bg-card border-border shadow-panel",
+        panel:
+          "border-ops-frame bg-ops-panel/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_18px_34px_rgba(1,8,20,0.55)]",
         glass: "bg-black/40 backdrop-blur-xl border-white/10 shadow-inner-glow",
         ghost: "bg-transparent border-transparent",
       },
@@ -54,7 +55,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6 border-b border-border/50 bg-white/[0.01]", className)}
+    className={cn("flex flex-col space-y-1.5 p-4 border-b border-ops-line bg-ops-panel-soft/55", className)}
     {...props}
   />
 ))
@@ -67,7 +68,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight font-display text-primary/90 rec-tech",
+      "text-lg font-semibold leading-none tracking-tight font-display text-ops-text-strong rec-tech",
       className
     )}
     {...props}
