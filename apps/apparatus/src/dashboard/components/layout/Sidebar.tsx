@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Shield,
@@ -21,6 +21,7 @@ import {
   Server,
   BookOpen,
   ListTree,
+  Eye,
 } from 'lucide-react';
 import { cn } from '../ui/cn';
 import { useApparatus } from '../../providers/ApparatusProvider';
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { path: '/docs', label: 'Docs Hub', icon: BookOpen },
   { path: '/traffic', label: 'Traffic', icon: Activity },
   { path: '/timeline', label: 'Timeline', icon: ListTree },
+  { path: '/fingerprints', label: 'Attackers', icon: ShieldAlert },
   { path: '/defense', label: 'Defense', icon: Shield },
   { path: '/deception', label: 'Deception', icon: FileWarning },
   { path: '/chaos', label: 'Chaos', icon: Zap },
@@ -52,6 +54,29 @@ export function Sidebar() {
   const { health } = useApparatus();
   const isHealthy = health.status === 'healthy';
   const [showKeyboardHints, setShowKeyboardHints] = useState(false);
+  const [hudHidden, setHudHidden] = useState(false);
+
+  // Check localStorage to see if HUD is hidden
+  useEffect(() => {
+    try {
+      const isHidden = localStorage.getItem('apparatus-dashboard-hud:hidden') === '1';
+      setHudHidden(isHidden);
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
+
+  const toggleHudVisibility = () => {
+    const newState = !hudHidden;
+    try {
+      localStorage.setItem('apparatus-dashboard-hud:hidden', newState ? '1' : '0');
+      setHudHidden(newState);
+      // Trigger a reload of the page to show/hide HUD widgets
+      window.location.reload();
+    } catch {
+      // localStorage unavailable
+    }
+  };
 
   return (
     <aside className="w-60 h-screen bg-neutral-950 border-r border-neutral-800/60 flex flex-col relative overflow-hidden">
@@ -111,10 +136,22 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* Footer — Keyboard Shortcuts & Status */}
+      {/* Footer — HUD Controls, Keyboard Shortcuts & Status */}
       <div className="border-t border-neutral-800/40 bg-neutral-900/20">
-        {/* Keyboard Shortcuts Section */}
+        {/* HUD Toggle */}
         <div className="px-3 py-2">
+          <button
+            onClick={toggleHudVisibility}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-sm text-[11px] font-display text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/50 transition-colors"
+            title={hudHidden ? 'Show HUD widgets' : 'Hide HUD widgets'}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            <span>{hudHidden ? 'Show HUD' : 'Hide HUD'}</span>
+          </button>
+        </div>
+
+        {/* Keyboard Shortcuts Section */}
+        <div className="px-3 py-2 border-t border-neutral-800/40">
           <button
             onClick={() => setShowKeyboardHints(!showKeyboardHints)}
             aria-expanded={showKeyboardHints}
