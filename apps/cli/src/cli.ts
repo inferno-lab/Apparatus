@@ -28,6 +28,7 @@ import { registerVictimCommands } from './commands/victim.js';
 import { registerScenariosCommands } from './commands/scenarios.js';
 import { registerDrillsCommands } from './commands/drills.js';
 import { registerAutopilotCommands } from './commands/autopilot.js';
+import { registerDataCommands } from './commands/data.js';
 
 export interface GlobalOptions {
   url?: string;
@@ -112,6 +113,7 @@ Environment Variables:
   registerDefenseCommands(program, getClient);
   registerNetworkCommands(program, getClient);
   registerStorageCommands(program, getClient);
+  registerDataCommands(program, getClient);
   registerTrafficCommands(program, getClient);
   registerIdentityCommands(program, getClient);
   registerLabsCommands(program, getClient);
