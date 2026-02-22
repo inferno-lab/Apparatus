@@ -327,6 +327,20 @@ The audit does double duty: it finds missing coverage AND flags bad tests (mirro
 | **Auditor** | Claude | `test-review-request` — finds gaps and flags bad tests per `references/audit-workflow.md` |
 | **Test Writer** | Codex or Gemini | Writes tests per `references/testing-standards.md` standards |
 
+### Pragmatic Enforcement Policy
+
+Use a hybrid gate to avoid unnecessary friction while preserving confidence:
+
+- **Non-trivial code changes (default):** The test-writing loop is required. Do not close the loop without audit evidence from `test-review-request` and a re-audit state with no unresolved P0/P1 gaps.
+- **Trivial changes (explicit exception):** Docs-only, comments-only, formatting-only, or rename-only edits may skip the audit loop.
+- **Mandatory note for skips:** Every skip must include `audit skipped: trivial` with a one-line reason in the loop summary.
+- **Uncertainty rule:** If it is not clearly trivial, run the audit.
+
+**Practical close criteria for implementer loops:**
+1. Tests added or updated for the change (when behavior changed).
+2. Local verification commands run and reported.
+3. Audit evidence present, or explicit trivial skip note present.
+
 ### The Loop
 
 ```
