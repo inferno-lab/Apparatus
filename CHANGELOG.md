@@ -5,6 +5,10 @@ All notable changes to this project are documented in this file.
 ## [Unreleased] - 2026-02-21
 
 ### Added
+- Live Payload Fuzzer M1 backend surface:
+  - `POST /api/redteam/fuzzer/run` for single-request execution with normalized telemetry output
+  - request validation for target/method/path/headers/query/body and bounded timeout controls
+  - response preview capture with truncation metadata for large upstream responses
 - Ghost API Mocker virtual service system:
   - `POST /ghosts` to create method+route virtual endpoints
   - `DELETE /ghosts/:id` to remove virtual endpoints
@@ -22,8 +26,10 @@ All notable changes to this project are documented in this file.
 - New tests:
   - `apps/apparatus/test/ghosting.test.ts`
   - `apps/apparatus/test/demo-mode-config.test.ts`
+  - Expanded `apps/apparatus/test/advanced.defense.test.ts` coverage for fuzzer validation, SSRF guardrails, upstream error normalization, large-response truncation, and validate-route host restriction.
 
 ### Changed
+- Rewrote `apps/apparatus/docs/development/plans/live-payload-fuzzer.md` into an implementation-ready engineering plan with contracts, phased milestones, and safety constraints.
 - `GET /ghosts` now returns ghost system state and virtual mock list in the shape `{ status, ghosts }`.
 - Added REST controls for ghost traffic:
   - `POST /ghosts/start`
@@ -42,6 +48,11 @@ All notable changes to this project are documented in this file.
   - increased command dialog surface opacity and border contrast
 
 ### Security
+- Hardened red-team request execution surfaces:
+  - loopback-only target policy by default for fuzzer and validate endpoints
+  - optional host allowlist via `APPARATUS_FUZZER_ALLOWED_TARGETS`
+  - absolute/protocol-relative path rejection to prevent origin override
+  - bounded outbound body and upstream response capture limits
 - Ghost mutation and traffic-control routes are now protected by `securityGate` (localhost-only unless `DEMO_MODE=true`):
   - `GET /ghosts`
   - `POST /ghosts`
@@ -60,6 +71,8 @@ All notable changes to this project are documented in this file.
 - Added startup warning for containerized environments when `HOST=127.0.0.1`.
 
 ### Breaking Changes
+- `GET /redteam/validate` is now protected by `securityGate` and host-restricted by default.
+  - Non-loopback targets are rejected unless explicitly allowlisted via `APPARATUS_FUZZER_ALLOWED_TARGETS`.
 - Default bind host is `127.0.0.1` (not `0.0.0.0`).
   - Set `HOST=0.0.0.0` explicitly for Docker/Kubernetes/remote access.
 - Cluster attack controls are localhost-gated by default:
