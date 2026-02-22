@@ -21,6 +21,8 @@ Apparatus is a **comprehensive security testing platform** that simulates real-w
 
 Think of it as **OWASP WebGoat meets Chaos Monkey meets a full-featured security lab**—all in one platform.
 
+![Apparatus Dashboard](docs/assets/apparatus.png)
+
 ---
 
 ## Key Features
@@ -495,7 +497,7 @@ MIT License - See [LICENSE](LICENSE) for details
 - 📖 [Full Documentation](docs/)
 - 🐛 [Issue Tracker](https://github.com/yourusername/apparatus/issues)
 - 💬 [Discussions](https://github.com/yourusername/apparatus/discussions)
-- 📧 Contact: security@apparatus.dev
+- 📧 Contact: nick@atlascrew.dev
 
 ---
 
@@ -507,28 +509,6 @@ Apparatus builds on ideas from:
 - Gremlin (chaos engineering)
 - Honeypots and deception research
 - Red team methodology and tools
-
----
-
-## Roadmap
-
-### Q1 2026
-- [ ] PostgreSQL persistence layer
-- [ ] Kubernetes operator
-- [ ] Advanced threat intelligence integration
-- [ ] Multi-region cluster support
-
-### Q2 2026
-- [ ] Enhanced AI models
-- [ ] Mobile app for remote monitoring
-- [ ] GraphQL mutations
-- [ ] Advanced analytics dashboard
-
-### Q3 2026
-- [ ] YARA rule integration
-- [ ] MITRE ATT&CK framework alignment
-- [ ] Advanced persistence testing
-- [ ] Supply chain simulation enhancements
 
 ---
 
