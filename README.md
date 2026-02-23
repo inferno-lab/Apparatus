@@ -2,12 +2,12 @@
 
 ![Apparatus Banner](docs/assets/apparatus-banner.png)
 
-> All-in-one cybersecurity testing and simulation lab platform for red teams, chaos engineering, defense validation, and security tool testing.
-
 ![Node.js](https://img.shields.io/badge/Node.js-v23-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue)
 ![Multi-Protocol](https://img.shields.io/badge/Protocols-13%2B-orange)
 ![Open Source](https://img.shields.io/badge/License-MIT-black)
+
+All-in-one cybersecurity testing and simulation lab platform for red teams, chaos engineering, defense validation, and security tool testing.
 
 ---
 
