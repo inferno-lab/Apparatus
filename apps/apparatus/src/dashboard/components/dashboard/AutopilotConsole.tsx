@@ -6,9 +6,15 @@ import { Badge } from '../ui/Badge';
 import { cn } from '../ui/cn';
 import { useAutopilot } from '../../hooks/useAutopilot';
 import {
+  clampIntervalMs,
+  clampMaxIterations,
   compactAssetLabel,
+  deriveAutopilotEvasionTelemetryModel,
   deriveAutopilotMemoryPanelModel,
   formatSeenAt,
+  isMissionStartDisabled,
+  statusVariant,
+  toggleAllowedTool,
 } from './AutopilotConsole.logic';
 
 const TOOL_OPTIONS = [
@@ -29,16 +35,6 @@ const PHASE_LABELS: Record<string, string> = {
   system: 'SYSTEM',
 };
 
-function statusVariant(status?: string): 'neutral' | 'warning' | 'danger' | 'success' | 'primary' {
-  if (!status) return 'neutral';
-  if (status === 'running') return 'primary';
-  if (status === 'stopping') return 'warning';
-  if (status === 'failed') return 'danger';
-  if (status === 'completed') return 'success';
-  if (status === 'stopped') return 'warning';
-  return 'neutral';
-}
-
 export function AutopilotConsole() {
   const { session, latestReport, active, isLoading, error, start, stop, kill } = useAutopilot();
   const [objective, setObjective] = useState('Find the breaking point of the /checkout API');
@@ -56,6 +52,10 @@ export function AutopilotConsole() {
   const actionLogRef = useRef<HTMLDivElement | null>(null);
   const [thoughtAutoScroll, setThoughtAutoScroll] = useState(true);
   const [actionAutoScroll, setActionAutoScroll] = useState(true);
+  const effectiveAllowedTools = useMemo(
+    () => (forbidCrash ? allowedTools.filter((tool) => tool !== 'chaos.crash') : allowedTools),
+    [allowedTools, forbidCrash]
+  );
 
   const thoughts = session?.thoughts || [];
   const actions = session?.actions || [];
@@ -64,6 +64,16 @@ export function AutopilotConsole() {
   const { acquiredAssets, relationStrip, breakSignals, openedPaths, preconditions } = useMemo(
     () => deriveAutopilotMemoryPanelModel(sessionContext),
     [sessionContext]
+  );
+  const {
+    blockedSignals,
+    blockedSignalEvents,
+    evasionManeuvers,
+    successfulEvasions,
+    stalledEvasions,
+  } = useMemo(
+    () => deriveAutopilotEvasionTelemetryModel({ breakSignals, actions }),
+    [actions, breakSignals]
   );
 
   useEffect(() => {
@@ -87,13 +97,7 @@ export function AutopilotConsole() {
   }, [session]);
 
   const onToggleTool = (tool: string) => {
-    setAllowedTools((current) => {
-      if (current.includes(tool)) {
-        const next = current.filter((item) => item !== tool);
-        return next.length ? next : current;
-      }
-      return [...current, tool];
-    });
+    setAllowedTools((current) => toggleAllowedTool(current, tool));
   };
 
   const startMission = async () => {
@@ -102,7 +106,7 @@ export function AutopilotConsole() {
       maxIterations,
       intervalMs,
       scope: {
-        allowedTools,
+        allowedTools: effectiveAllowedTools,
         forbidCrash,
       },
     });
@@ -160,7 +164,7 @@ export function AutopilotConsole() {
                 min={1}
                 max={30}
                 value={maxIterations}
-                onChange={(event) => setMaxIterations(Math.max(1, Math.min(30, Number(event.target.value) || 1)))}
+                onChange={(event) => setMaxIterations(clampMaxIterations(Number(event.target.value)))}
                 className="w-full h-10 bg-neutral-900/60 border border-neutral-800/70 rounded-[3px] px-3 text-sm text-neutral-100 focus:outline-none focus:border-primary-500/40"
               />
             </div>
@@ -172,7 +176,7 @@ export function AutopilotConsole() {
                 min={0}
                 max={30000}
                 value={intervalMs}
-                onChange={(event) => setIntervalMs(Math.max(0, Math.min(30000, Number(event.target.value) || 0)))}
+                onChange={(event) => setIntervalMs(clampIntervalMs(Number(event.target.value)))}
                 className="w-full h-10 bg-neutral-900/60 border border-neutral-800/70 rounded-[3px] px-3 text-sm text-neutral-100 focus:outline-none focus:border-primary-500/40"
               />
             </div>
@@ -193,7 +197,7 @@ export function AutopilotConsole() {
             <div className="text-[11px] font-mono text-neutral-500 mb-2">Scope Limits</div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {TOOL_OPTIONS.map((tool) => {
-                const checked = allowedTools.includes(tool.id);
+                const checked = effectiveAllowedTools.includes(tool.id);
                 const disabledBySafety = forbidCrash && tool.id === 'chaos.crash';
 
                 return (
@@ -223,7 +227,7 @@ export function AutopilotConsole() {
               variant="neon"
               size="lg"
               onClick={startMission}
-              disabled={active || !objective.trim()}
+              disabled={isMissionStartDisabled(active, objective)}
               isLoading={isLoading && !active}
               leftIcon={<Play className="h-4 w-4" />}
             >
@@ -347,6 +351,11 @@ export function AutopilotConsole() {
                     </Badge>
                   </div>
                   <div className="mt-1 text-[11px] text-neutral-500 font-mono">{entry.message}</div>
+                  {entry.maneuver && (
+                    <div className="mt-1 text-[11px] font-mono text-warning-300">
+                      signal={entry.maneuver.triggerSignal} | counter={entry.maneuver.countermeasure}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -374,6 +383,78 @@ export function AutopilotConsole() {
             <div className="text-[11px] text-neutral-500 font-mono">Last Verification</div>
             <div className="mt-1 text-sm font-mono text-neutral-200">
               {latestReport?.verification.notes || session?.summary?.failureReason || 'No verification events yet.'}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>Defense Telemetry</CardTitle>
+          <CardDescription>Blocked-vs-evaded signal tracking for recent autopilot maneuvers.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="p-3 rounded-[3px] border border-neutral-800/70 bg-neutral-900/50">
+              <div className="text-[11px] text-neutral-500 font-mono">Blocked Events</div>
+              <div className="mt-1 text-lg font-display text-danger-200">{blockedSignalEvents}</div>
+            </div>
+            <div className="p-3 rounded-[3px] border border-neutral-800/70 bg-neutral-900/50">
+              <div className="text-[11px] text-neutral-500 font-mono">Distinct Signals</div>
+              <div className="mt-1 text-lg font-display text-neutral-100">{blockedSignals.length}</div>
+            </div>
+            <div className="p-3 rounded-[3px] border border-neutral-800/70 bg-neutral-900/50">
+              <div className="text-[11px] text-neutral-500 font-mono">Successful Evasions</div>
+              <div className="mt-1 text-lg font-display text-success-200">{successfulEvasions}</div>
+            </div>
+            <div className="p-3 rounded-[3px] border border-neutral-800/70 bg-neutral-900/50">
+              <div className="text-[11px] text-neutral-500 font-mono">Stalled Evasions</div>
+              <div className="mt-1 text-lg font-display text-warning-200">{stalledEvasions}</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] text-neutral-500 font-mono">Detected Defense Signals</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {blockedSignals.length === 0 ? (
+                <span className="text-[11px] text-neutral-600 font-mono">none</span>
+              ) : (
+                blockedSignals.slice(-8).map((signal) => (
+                  <Badge key={signal} size="sm" variant="danger">{signal}</Badge>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] text-neutral-500 font-mono">Recent Evasion Maneuvers</div>
+            <div
+              className="mt-1 h-[170px] overflow-y-auto rounded-[3px] border border-neutral-800/60 bg-black/25 p-2 space-y-2"
+              role="log"
+              aria-label="Recent evasion maneuvers"
+              tabIndex={0}
+            >
+              {isLoading && !session ? (
+                <div className="text-xs text-neutral-600 font-mono">Loading telemetry...</div>
+              ) : evasionManeuvers.length === 0 ? (
+                <div className="text-xs text-neutral-600 font-mono">
+                  {session ? 'No evasion maneuvers recorded yet.' : 'Start a mission to stream telemetry.'}
+                </div>
+              ) : (
+                evasionManeuvers.map((entry) => (
+                  <div key={entry.id} className="rounded-[3px] border border-neutral-800/70 bg-neutral-900/40 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs text-neutral-200 font-mono">
+                        {entry.triggerSignal} <span className="text-neutral-500">-&gt;</span> {entry.countermeasure || 'none'}
+                      </div>
+                      <Badge size="sm" variant={entry.ok ? 'success' : 'warning'}>
+                        {entry.ok ? 'evaded' : 'blocked'}
+                      </Badge>
+                    </div>
+                    <div className="mt-1 text-xs text-neutral-500 font-mono">{entry.rationale}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </CardContent>

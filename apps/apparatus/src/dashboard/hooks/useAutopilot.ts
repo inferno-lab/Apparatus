@@ -18,6 +18,11 @@ export interface ActionEntry {
   params: Record<string, unknown>;
   ok: boolean;
   message: string;
+  maneuver?: {
+    triggerSignal: string;
+    countermeasure: string;
+    rationale: string;
+  };
 }
 
 export interface RuntimeSnapshot {
