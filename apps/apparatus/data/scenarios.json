@@ -1,0 +1,220 @@
+{
+  "scenarios": [
+    {
+      "name": "delay-scenario",
+      "steps": [
+        {
+          "id": "1",
+          "action": "delay",
+          "params": {
+            "duration": 20
+          }
+        }
+      ],
+      "id": "sc-1771812413778",
+      "createdAt": "2026-02-23T02:06:53.778Z"
+    },
+    {
+      "name": "fail-scenario",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.cpu",
+          "params": {
+            "duration": 250
+          }
+        }
+      ],
+      "id": "sc-1771812413856",
+      "createdAt": "2026-02-23T02:06:53.856Z"
+    },
+    {
+      "name": "clamped-cpu",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.cpu",
+          "params": {
+            "duration": 120000
+          }
+        }
+      ],
+      "id": "sc-1771812413994",
+      "createdAt": "2026-02-23T02:06:53.994Z"
+    },
+    {
+      "name": "clamped-memory",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.memory",
+          "params": {
+            "action": "allocate",
+            "amount": 4096
+          }
+        }
+      ],
+      "id": "sc-1771812413998",
+      "createdAt": "2026-02-23T02:06:53.998Z"
+    },
+    {
+      "name": "clamped-rate",
+      "steps": [
+        {
+          "id": "1",
+          "action": "cluster.attack",
+          "params": {
+            "target": "http://127.0.0.1:8090/echo",
+            "rate": 2000
+          }
+        }
+      ],
+      "id": "sc-1771812414001",
+      "createdAt": "2026-02-23T02:06:54.001Z"
+    },
+    {
+      "name": "delay-scenario",
+      "steps": [
+        {
+          "id": "1",
+          "action": "delay",
+          "params": {
+            "duration": 20
+          }
+        }
+      ],
+      "id": "sc-1771812461651",
+      "createdAt": "2026-02-23T02:07:41.651Z"
+    },
+    {
+      "name": "fail-scenario",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.cpu",
+          "params": {
+            "duration": 250
+          }
+        }
+      ],
+      "id": "sc-1771812461730",
+      "createdAt": "2026-02-23T02:07:41.730Z"
+    },
+    {
+      "name": "clamped-cpu",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.cpu",
+          "params": {
+            "duration": 120000
+          }
+        }
+      ],
+      "id": "sc-1771812461871",
+      "createdAt": "2026-02-23T02:07:41.871Z"
+    },
+    {
+      "name": "clamped-memory",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.memory",
+          "params": {
+            "action": "allocate",
+            "amount": 4096
+          }
+        }
+      ],
+      "id": "sc-1771812461876",
+      "createdAt": "2026-02-23T02:07:41.876Z"
+    },
+    {
+      "name": "clamped-rate",
+      "steps": [
+        {
+          "id": "1",
+          "action": "cluster.attack",
+          "params": {
+            "target": "http://127.0.0.1:8090/echo",
+            "rate": 2000
+          }
+        }
+      ],
+      "id": "sc-1771812461882",
+      "createdAt": "2026-02-23T02:07:41.882Z"
+    },
+    {
+      "name": "delay-scenario",
+      "steps": [
+        {
+          "id": "1",
+          "action": "delay",
+          "params": {
+            "duration": 20
+          }
+        }
+      ],
+      "id": "sc-1771812478290",
+      "createdAt": "2026-02-23T02:07:58.290Z"
+    },
+    {
+      "name": "fail-scenario",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.cpu",
+          "params": {
+            "duration": 250
+          }
+        }
+      ],
+      "id": "sc-1771812478364",
+      "createdAt": "2026-02-23T02:07:58.364Z"
+    },
+    {
+      "name": "clamped-cpu",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.cpu",
+          "params": {
+            "duration": 120000
+          }
+        }
+      ],
+      "id": "sc-1771812478503",
+      "createdAt": "2026-02-23T02:07:58.503Z"
+    },
+    {
+      "name": "clamped-memory",
+      "steps": [
+        {
+          "id": "1",
+          "action": "chaos.memory",
+          "params": {
+            "action": "allocate",
+            "amount": 4096
+          }
+        }
+      ],
+      "id": "sc-1771812478509",
+      "createdAt": "2026-02-23T02:07:58.509Z"
+    },
+    {
+      "name": "clamped-rate",
+      "steps": [
+        {
+          "id": "1",
+          "action": "cluster.attack",
+          "params": {
+            "target": "http://127.0.0.1:8090/echo",
+            "rate": 2000
+          }
+        }
+      ],
+      "id": "sc-1771812478515",
+      "createdAt": "2026-02-23T02:07:58.515Z"
+    }
+  ]
+}

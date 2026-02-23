@@ -6,6 +6,9 @@ import { logger } from "./logger.js";
 import { sseBroadcaster } from "./sse-broadcast.js";
 import { isClusterAttackActive } from "./cluster.js";
 import { getGhostStatus, startGhostTraffic, stopGhostTraffic } from "./ghosting.js";
+import { cfg } from "./config.js";
+import { loadDrillRunsState, PersistedDrillRun, writeDrillRunsState } from "./persistence/drill-runs.js";
+import { markPersistenceHydrated, markPersistenceWrite, registerPersistenceStore } from "./persistence/status.js";
 
 export type DrillDifficulty = "junior" | "senior" | "principal";
 export type DrillStatus = "pending" | "arming" | "active" | "stabilizing" | "won" | "failed" | "cancelled";
@@ -155,6 +158,7 @@ const REQUEST_WINDOW_MS = 30000;
 const MAX_REQUEST_SAMPLES = 5000;
 const METRIC_TIMELINE_INTERVAL_MS = 5000;
 const TERMINAL_STATUSES = new Set<DrillStatus>(["won", "failed", "cancelled"]);
+const LIVE_STATUSES = new Set<DrillStatus>(["pending", "arming", "active", "stabilizing"]);
 
 const DEFAULT_SQLI_PAYLOADS = [
     "admin' OR '1'='1",
@@ -168,6 +172,11 @@ const drillRuns = new Map<string, DrillRun>();
 const latestRunByDrill = new Map<string, string>();
 const drillRunContexts = new Map<string, DrillRunContext>();
 const requestSamples: RequestSample[] = [];
+let drillRunsHydrationPromise: Promise<void> | null = null;
+let drillRunsPersistQueue: Promise<boolean> = Promise.resolve(true);
+const DRILL_STORE_KEY = "drillRuns";
+
+registerPersistenceStore(DRILL_STORE_KEY, cfg.drillRunsPath);
 
 let requestListenerAttached = false;
 
@@ -283,6 +292,91 @@ function initDrills() {
     for (const drill of BUILTIN_DRILLS) {
         drillDefinitions.set(drill.id, drill);
     }
+}
+
+function normalizePersistedDrillRun(run: PersistedDrillRun): DrillRun | null {
+    if (!drillDefinitions.has(run.drillId)) return null;
+
+    const normalized: DrillRun = {
+        runId: run.runId,
+        drillId: run.drillId,
+        drillName: run.drillName,
+        status: run.status,
+        startedAt: run.startedAt,
+        finishedAt: run.finishedAt,
+        detectedAt: run.detectedAt,
+        mitigatedAt: run.mitigatedAt,
+        failureReason: run.failureReason,
+        timeline: run.timeline.map((event) => ({
+            at: event.at,
+            type: event.type as DrillTimelineEventType,
+            message: event.message,
+            data: event.data,
+        })),
+        lastSnapshot: run.lastSnapshot,
+        score: run.score,
+    };
+
+    if (LIVE_STATUSES.has(normalized.status)) {
+        normalized.status = "failed";
+        normalized.finishedAt = normalized.finishedAt || new Date().toISOString();
+        normalized.failureReason = normalized.failureReason || "Drill run interrupted by restart";
+        appendTimeline(normalized, "system", "Run marked failed after restart recovery");
+        normalized.score = calculateScore(normalized, normalized.status);
+    }
+
+    return normalized;
+}
+
+function snapshotDrillRunsState() {
+    return {
+        runs: Array.from(drillRuns.values()),
+        latestRunByDrill: Object.fromEntries(latestRunByDrill.entries()),
+    };
+}
+
+async function persistDrillRunsStateQueued(): Promise<boolean> {
+    drillRunsPersistQueue = drillRunsPersistQueue.then(
+        () => writeDrillRunsState(cfg.drillRunsPath, snapshotDrillRunsState()),
+        () => writeDrillRunsState(cfg.drillRunsPath, snapshotDrillRunsState())
+    );
+    const persisted = await drillRunsPersistQueue;
+    markPersistenceWrite(DRILL_STORE_KEY, persisted);
+    return persisted;
+}
+
+async function hydrateDrillRunsState(): Promise<void> {
+    const persistedState = await loadDrillRunsState(cfg.drillRunsPath);
+
+    for (const run of persistedState.runs) {
+        const normalizedRun = normalizePersistedDrillRun(run);
+        if (!normalizedRun) continue;
+
+        drillRuns.set(normalizedRun.runId, normalizedRun);
+        if (drillRuns.size > MAX_RUNS) {
+            const oldestRunId = drillRuns.keys().next().value;
+            if (oldestRunId) {
+                drillRuns.delete(oldestRunId);
+            }
+        }
+    }
+
+    latestRunByDrill.clear();
+    for (const [drillId, runId] of Object.entries(persistedState.latestRunByDrill)) {
+        const run = drillRuns.get(runId);
+        if (run && run.drillId === drillId) {
+            latestRunByDrill.set(drillId, runId);
+        }
+    }
+    markPersistenceHydrated(DRILL_STORE_KEY);
+}
+
+async function ensureDrillStateHydrated(): Promise<void> {
+    initDrills();
+    if (!drillRunsHydrationPromise) {
+        drillRunsHydrationPromise = hydrateDrillRunsState();
+    }
+    await drillRunsHydrationPromise;
 }
 
 function attachRequestListener() {
@@ -643,6 +737,11 @@ async function finalizeRun(runId: string, status: DrillStatus, reason?: string) 
 
     run.score = calculateScore(run, status);
     logger.info({ runId, drillId: run.drillId, status }, "Drill run finalized");
+
+    const persisted = await persistDrillRunsStateQueued();
+    if (!persisted) {
+        logger.warn({ runId }, "Drill run finalized in memory but persistence write failed");
+    }
 }
 
 async function evaluateRun(drill: DrillDefinition, runId: string) {
@@ -757,6 +856,11 @@ function createRun(drill: DrillDefinition) {
             }
             drillRuns.delete(firstRunId);
             drillRunContexts.delete(firstRunId);
+            for (const [drillId, runId] of latestRunByDrill.entries()) {
+                if (runId === firstRunId) {
+                    latestRunByDrill.delete(drillId);
+                }
+            }
         }
     }
 
@@ -771,14 +875,14 @@ function createRun(drill: DrillDefinition) {
     return run;
 }
 
-export function drillListHandler(_req: Request, res: Response) {
-    initDrills();
+export async function drillListHandler(_req: Request, res: Response) {
+    await ensureDrillStateHydrated();
     attachRequestListener();
     res.json(Array.from(drillDefinitions.values()));
 }
 
-export function drillRunHandler(req: Request, res: Response) {
-    initDrills();
+export async function drillRunHandler(req: Request, res: Response) {
+    await ensureDrillStateHydrated();
     attachRequestListener();
 
     const drillId = req.params.id;
@@ -789,6 +893,10 @@ export function drillRunHandler(req: Request, res: Response) {
     }
 
     const run = createRun(drill);
+    const persisted = await persistDrillRunsStateQueued();
+    if (!persisted) {
+        logger.warn({ runId: run.runId }, "Drill run created in memory but persistence write failed");
+    }
 
     res.status(202).json({
         status: "started",
@@ -802,8 +910,8 @@ export function drillRunHandler(req: Request, res: Response) {
     });
 }
 
-export function drillStatusHandler(req: Request, res: Response) {
-    initDrills();
+export async function drillStatusHandler(req: Request, res: Response) {
+    await ensureDrillStateHydrated();
 
     const drillId = req.params.id;
     if (!drillDefinitions.has(drillId)) {
@@ -823,8 +931,8 @@ export function drillStatusHandler(req: Request, res: Response) {
     });
 }
 
-export function drillMarkDetectedHandler(req: Request, res: Response) {
-    initDrills();
+export async function drillMarkDetectedHandler(req: Request, res: Response) {
+    await ensureDrillStateHydrated();
 
     const drillId = req.params.id;
     if (!drillDefinitions.has(drillId)) {
@@ -845,6 +953,10 @@ export function drillMarkDetectedHandler(req: Request, res: Response) {
     if (!run.detectedAt) {
         run.detectedAt = new Date().toISOString();
         appendTimeline(run, "user_action", "Operator marked incident as detected");
+        const persisted = await persistDrillRunsStateQueued();
+        if (!persisted) {
+            logger.warn({ runId: run.runId }, "Drill detection mark stored in memory but persistence write failed");
+        }
     }
 
     return res.json({
@@ -854,7 +966,7 @@ export function drillMarkDetectedHandler(req: Request, res: Response) {
 }
 
 export async function drillCancelHandler(req: Request, res: Response) {
-    initDrills();
+    await ensureDrillStateHydrated();
 
     const drillId = req.params.id;
     if (!drillDefinitions.has(drillId)) {
@@ -876,8 +988,8 @@ export async function drillCancelHandler(req: Request, res: Response) {
     return res.json({ status: "ok", run });
 }
 
-export function drillDebriefHandler(req: Request, res: Response) {
-    initDrills();
+export async function drillDebriefHandler(req: Request, res: Response) {
+    await ensureDrillStateHydrated();
 
     const drillId = req.params.id;
     if (!drillDefinitions.has(drillId)) {
@@ -897,6 +1009,10 @@ export function drillDebriefHandler(req: Request, res: Response) {
 
     if (!run.score) {
         run.score = calculateScore(run, run.status);
+        const persisted = await persistDrillRunsStateQueued();
+        if (!persisted) {
+            logger.warn({ runId: run.runId }, "Drill debrief score stored in memory but persistence write failed");
+        }
     }
 
     return res.json({
