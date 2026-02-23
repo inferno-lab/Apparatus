@@ -1,4 +1,4 @@
-# Apparatus
+<div align="center">
 
 ![Apparatus Banner](docs/assets/apparatus-banner.png)
 
@@ -8,6 +8,8 @@
 ![Open Source](https://img.shields.io/badge/License-MIT-black)
 
 All-in-one cybersecurity testing and simulation lab platform for red teams, chaos engineering, defense validation, and security tool testing.
+
+</div>
 
 ---
 
