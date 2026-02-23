@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import { logger } from "./logger.js";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { chat } from "./ai/client.js";
 import { PERSONAS } from "./ai/personas.js";
 import { broadcastDeception } from "./sse-broadcast.js";
+import { cfg } from "./config.js";
+import { loadDeceptionHistory, writeDeceptionHistory } from "./persistence/deception-history.js";
+import { markPersistenceHydrated, markPersistenceWrite, registerPersistenceStore } from "./persistence/status.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +23,50 @@ interface DeceptionEvent {
 
 const deceptionHistory: DeceptionEvent[] = [];
 const MAX_HISTORY = 100;
+let deceptionHistoryHydrationPromise: Promise<void> | null = null;
+let deceptionHistoryPersistQueue: Promise<boolean> = Promise.resolve(true);
+const DECEPTION_STORE_KEY = "deceptionHistory";
+
+registerPersistenceStore(DECEPTION_STORE_KEY, cfg.deceptionHistoryPath);
+
+function normalizeDeceptionEvent(event: DeceptionEvent): DeceptionEvent | null {
+    if (typeof event.timestamp !== "string") return null;
+    if (typeof event.ip !== "string") return null;
+    if (event.type !== "honeypot_hit" && event.type !== "shell_command" && event.type !== "sqli_probe") return null;
+    if (typeof event.route !== "string") return null;
+    if (typeof event.sessionId !== "undefined" && typeof event.sessionId !== "string") return null;
+    return event;
+}
+
+async function hydrateDeceptionHistory(): Promise<void> {
+    const persistedEvents = await loadDeceptionHistory(cfg.deceptionHistoryPath);
+    const normalizedEvents = persistedEvents
+        .map((event) => normalizeDeceptionEvent(event as DeceptionEvent))
+        .filter((event): event is DeceptionEvent => event !== null)
+        .slice(0, MAX_HISTORY);
+
+    if (normalizedEvents.length > 0) {
+        deceptionHistory.splice(0, deceptionHistory.length, ...normalizedEvents);
+    }
+    markPersistenceHydrated(DECEPTION_STORE_KEY);
+}
+
+async function ensureDeceptionHistoryHydrated(): Promise<void> {
+    if (!deceptionHistoryHydrationPromise) {
+        deceptionHistoryHydrationPromise = hydrateDeceptionHistory();
+    }
+    await deceptionHistoryHydrationPromise;
+}
+
+async function persistDeceptionHistoryQueued(): Promise<boolean> {
+    deceptionHistoryPersistQueue = deceptionHistoryPersistQueue.then(
+        () => writeDeceptionHistory(cfg.deceptionHistoryPath, deceptionHistory.slice(0, MAX_HISTORY)),
+        () => writeDeceptionHistory(cfg.deceptionHistoryPath, deceptionHistory.slice(0, MAX_HISTORY))
+    );
+    const persisted = await deceptionHistoryPersistQueue;
+    markPersistenceWrite(DECEPTION_STORE_KEY, persisted);
+    return persisted;
+}
 
 function recordDeception(event: DeceptionEvent) {
     deceptionHistory.unshift(event);
@@ -29,18 +75,29 @@ function recordDeception(event: DeceptionEvent) {
     }
     // Broadcast to SSE clients
     broadcastDeception(event);
+    void persistDeceptionHistoryQueued().then((persisted) => {
+        if (!persisted) {
+            logger.warn({ route: event.route, type: event.type }, "Deception event stored in memory but persistence write failed");
+        }
+    });
 }
 
-export function deceptionHistoryHandler(_req: Request, res: Response) {
+export async function deceptionHistoryHandler(_req: Request, res: Response) {
+    await ensureDeceptionHistoryHydrated();
     res.json({
         count: deceptionHistory.length,
         events: deceptionHistory
     });
 }
 
-export function deceptionClearHandler(_req: Request, res: Response) {
+export async function deceptionClearHandler(_req: Request, res: Response) {
+    await ensureDeceptionHistoryHydrated();
     const count = deceptionHistory.length;
     deceptionHistory.length = 0;
+    const persisted = await persistDeceptionHistoryQueued();
+    if (!persisted) {
+        logger.warn("Deception history cleared in memory but persistence write failed");
+    }
     res.json({ status: "cleared", count });
 }
 
@@ -110,12 +167,18 @@ const DECEPTION_ROUTES: Record<string, (req: Request, res: Response) => void> = 
         res.send("root:x:0:0:root:/root:/bin/bash\nbin:x:1:1:bin:/bin:/sbin/nologin\ndaemon:x:2:2:daemon:/sbin:/sbin/nologin\nadm:x:3:4:adm:/var/adm:/sbin/nologin\nlp:x:4:7:lp:/var/spool/lpd:/sbin/nologin");
     }
 };
+const DECEPTION_BYPASS_PREFIXES = ["/admin/persistence/"];
 
 export async function deceptionHandler(req: Request, res: Response): Promise<boolean> {
-    const path = req.path;
+    await ensureDeceptionHistoryHydrated();
+    const requestPath = req.path;
+
+    if (DECEPTION_BYPASS_PREFIXES.some((prefix) => requestPath.startsWith(prefix))) {
+        return false;
+    }
     
     // AI Console API
-    if (path === "/console/api" && req.method === "POST") {
+    if (requestPath === "/console/api" && req.method === "POST") {
         const { command, sessionId } = req.body;
         const ip = req.ip || "unknown";
         logger.info({ ip, command, sessionId }, "AI Honeypot: Executing command");
@@ -137,8 +200,8 @@ export async function deceptionHandler(req: Request, res: Response): Promise<boo
 
     // Check for exact matches or prefix matches for deception
     for (const [route, handler] of Object.entries(DECEPTION_ROUTES)) {
-        if (path === route || path.startsWith(route + "/")) {
-            logger.info({ path, ip: req.ip }, "Deception active: serving fake response");
+        if (requestPath === route || requestPath.startsWith(route + "/")) {
+            logger.info({ path: requestPath, ip: req.ip }, "Deception active: serving fake response");
             handler(req, res);
             return true;
         }

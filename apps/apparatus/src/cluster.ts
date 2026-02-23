@@ -6,6 +6,8 @@ import { request } from "undici";
 import { Request, Response } from "express";
 import os from "os";
 import { cfg } from "./config.js";
+import { loadClusterStateSync, writeClusterState } from "./persistence/cluster-state.js";
+import { markPersistenceHydrated, markPersistenceWrite, registerPersistenceStore } from "./persistence/status.js";
 
 const DEFAULT_GOSSIP_PORT = 7946;
 const CLUSTER_COMMAND_TTL_MS = 30_000;
@@ -25,6 +27,35 @@ const commandMetrics = {
     rejected: 0,
 };
 const myIp = getLocalIp();
+let clusterStatePersistQueue: Promise<boolean> = Promise.resolve(true);
+const CLUSTER_STORE_KEY = "clusterState";
+
+registerPersistenceStore(CLUSTER_STORE_KEY, cfg.clusterStatePath);
+
+for (const member of loadClusterStateSync(cfg.clusterStatePath)) {
+    if (member.ip !== myIp) {
+        members.set(member.ip, member.lastSeen);
+    }
+}
+markPersistenceHydrated(CLUSTER_STORE_KEY);
+
+function snapshotClusterMembers() {
+    return Array.from(members.entries()).map(([ip, lastSeen]) => ({ ip, lastSeen }));
+}
+
+function persistClusterStateQueued() {
+    clusterStatePersistQueue = clusterStatePersistQueue.then(
+        () => writeClusterState(cfg.clusterStatePath, snapshotClusterMembers()),
+        () => writeClusterState(cfg.clusterStatePath, snapshotClusterMembers())
+    );
+
+    void clusterStatePersistQueue.then((persisted) => {
+        markPersistenceWrite(CLUSTER_STORE_KEY, persisted);
+        if (!persisted) {
+            logger.warn("Cluster members state persisted in memory only due to write failure");
+        }
+    });
+}
 
 function canonicalizeForSignature(value: unknown): unknown {
     if (Array.isArray(value)) {
@@ -236,6 +267,7 @@ export function startClusterNode(options: { port?: number; host?: string } = {})
                     logger.info({ newMember: data.ip }, "Cluster: New Node Discovered");
                 }
                 members.set(data.ip, Date.now());
+                persistClusterStateQueued();
             }
             if (data.type === "ATTACK") {
                 commandMetrics.received += 1;
@@ -275,8 +307,15 @@ export function startClusterNode(options: { port?: number; host?: string } = {})
         socket.send(beacon, gossipPort, "255.255.255.255");
         
         const now = Date.now();
+        let removedAny = false;
         for (const [ip, lastSeen] of members) {
-            if (now - lastSeen > 15000) members.delete(ip);
+            if (now - lastSeen > 15000) {
+                members.delete(ip);
+                removedAny = true;
+            }
+        }
+        if (removedAny) {
+            persistClusterStateQueued();
         }
     }, 5000);
     

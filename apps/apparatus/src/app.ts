@@ -58,6 +58,7 @@ import { runEscapeScan } from "./escape/index.js";
 import { triggerSupplyChainAttack } from "./simulator/supply-chain.js";
 import { getGraphHandler, injectMalwareHandler, resetGraphHandler } from "./simulator/dependency-graph.js";
 import { scenarioListHandler, scenarioSaveHandler, scenarioRunHandler, scenarioRunStatusHandler } from "./scenarios.js";
+import { getPersistenceHealth } from "./persistence/status.js";
 import {
     drillCancelHandler,
     drillDebriefHandler,
@@ -444,6 +445,9 @@ export function createApp(): Express {
     app.get("/tarpit", securityGate, tarpitListHandler);
     app.post("/tarpit/trap", securityGate, tarpitTrapHandler);
     app.post("/tarpit/release", securityGate, tarpitReleaseHandler);
+    app.get("/admin/persistence/health", securityGate, (_req, res) => {
+        res.json(getPersistenceHealth());
+    });
 
     // Deception History API
     app.get("/deception/history", deceptionHistoryHandler);

@@ -7,6 +7,13 @@ function parsePort(value: string | undefined, defaultPort: number): number {
     return port;
 }
 
+function resolvePersistencePath(value: string | undefined, defaultPath: string): string {
+    if (typeof value === "string") {
+        return value;
+    }
+    return process.env.NODE_ENV === "test" ? "" : defaultPath;
+}
+
 export const cfg = {
     host: process.env.HOST || "127.0.0.1",
     portHttp1: parsePort(process.env.PORT_HTTP1, 8090),
@@ -33,6 +40,13 @@ export const cfg = {
     // Integration with Chimera scripts
     k6ScenariosPath: process.env.K6_SCENARIOS_PATH || "",
     nucleiTemplatesPath: process.env.NUCLEI_TEMPLATES_PATH || "",
+    scenarioCatalogPath: resolvePersistencePath(process.env.SCENARIO_CATALOG_PATH, "data/scenarios.json"),
+    webhookStorePath: resolvePersistencePath(process.env.WEBHOOK_STORE_PATH, "data/webhooks.json"),
+    deceptionHistoryPath: resolvePersistencePath(process.env.DECEPTION_HISTORY_PATH, "data/deception-history.json"),
+    drillRunsPath: resolvePersistencePath(process.env.DRILL_RUNS_PATH, "data/drill-runs.json"),
+    requestHistoryPath: resolvePersistencePath(process.env.REQUEST_HISTORY_PATH, "data/request-history.json"),
+    tarpitStatePath: resolvePersistencePath(process.env.TARPIT_STATE_PATH, "data/tarpit-state.json"),
+    clusterStatePath: resolvePersistencePath(process.env.CLUSTER_STATE_PATH, "data/cluster-state.json"),
 };
 
 export const MTD_SKIP_ROUTE_PREFIXES = [

@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import { logger } from "./logger.js";
+import { cfg } from "./config.js";
 import { executeToolStep, sanitizeToolParams, TOOL_ACTIONS, ToolAction } from "./tool-executor.js";
+import { loadScenarioCatalog, PersistedScenario, writeScenarioCatalog } from "./persistence/scenario-catalog.js";
+import { markPersistenceHydrated, markPersistenceWrite, registerPersistenceStore } from "./persistence/status.js";
 
 export interface ScenarioStep {
     id: string;
@@ -29,13 +32,93 @@ interface ScenarioRunStatus {
 }
 
 const SCENARIO_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
-const VALID_SCENARIO_ACTIONS = TOOL_ACTIONS.filter((action) => action !== "chaos.crash");
+type ScenarioAllowedAction = Exclude<ToolAction, "chaos.crash">;
+const VALID_SCENARIO_ACTIONS: ScenarioAllowedAction[] = TOOL_ACTIONS.filter(
+    (action): action is ScenarioAllowedAction => action !== "chaos.crash"
+);
 const MAX_SCENARIOS = 200;
 const MAX_SCENARIO_RUNS = 1000;
 
 const scenarioStore = new Map<string, Scenario>();
 const scenarioRuns = new Map<string, ScenarioRunStatus>();
 const latestRunByScenario = new Map<string, string>();
+let scenarioCatalogHydrationPromise: Promise<void> | null = null;
+let scenarioCatalogPersistQueue: Promise<boolean> = Promise.resolve(true);
+const SCENARIO_STORE_KEY = "scenarioCatalog";
+
+registerPersistenceStore(SCENARIO_STORE_KEY, cfg.scenarioCatalogPath);
+
+function isAllowedScenarioAction(action: string): action is ScenarioAllowedAction {
+    return VALID_SCENARIO_ACTIONS.includes(action as ScenarioAllowedAction);
+}
+
+function normalizePersistedScenario(scenario: PersistedScenario): Scenario | null {
+    if (!SCENARIO_ID_PATTERN.test(scenario.id)) return null;
+    if (!Array.isArray(scenario.steps) || scenario.steps.length > 50) return null;
+
+    const sanitizedSteps: ScenarioStep[] = [];
+    for (const step of scenario.steps) {
+        if (!isAllowedScenarioAction(step.action)) return null;
+        if (!step.params || typeof step.params !== "object" || Array.isArray(step.params)) return null;
+        if (typeof step.delayMs !== "undefined" && typeof step.delayMs !== "number") return null;
+        try {
+            const action = step.action;
+            const sanitizedParams = sanitizeToolParams(action, step.params as Record<string, unknown>);
+            sanitizedSteps.push({
+                id: step.id,
+                action,
+                delayMs: step.delayMs,
+                params: sanitizedParams,
+            });
+        } catch {
+            return null;
+        }
+    }
+
+    return {
+        ...scenario,
+        steps: sanitizedSteps,
+    };
+}
+
+async function hydrateScenarioCatalog(): Promise<void> {
+    const persistedCatalog = await loadScenarioCatalog(cfg.scenarioCatalogPath);
+    if (persistedCatalog.size === 0) {
+        markPersistenceHydrated(SCENARIO_STORE_KEY);
+        return;
+    }
+
+    let restoredCount = 0;
+    for (const scenario of persistedCatalog.values()) {
+        const normalized = normalizePersistedScenario(scenario);
+        if (!normalized) continue;
+        scenarioStore.set(normalized.id, normalized);
+        restoredCount += 1;
+    }
+
+    logger.info(
+        { catalogPath: cfg.scenarioCatalogPath, restoredCount },
+        "Scenario catalog hydrated from persistence layer"
+    );
+    markPersistenceHydrated(SCENARIO_STORE_KEY);
+}
+
+async function ensureScenarioCatalogHydrated(): Promise<void> {
+    if (!scenarioCatalogHydrationPromise) {
+        scenarioCatalogHydrationPromise = hydrateScenarioCatalog();
+    }
+    await scenarioCatalogHydrationPromise;
+}
+
+async function persistScenarioCatalogQueued(): Promise<boolean> {
+    scenarioCatalogPersistQueue = scenarioCatalogPersistQueue.then(
+        () => writeScenarioCatalog(cfg.scenarioCatalogPath, scenarioStore.values()),
+        () => writeScenarioCatalog(cfg.scenarioCatalogPath, scenarioStore.values())
+    );
+    const persisted = await scenarioCatalogPersistQueue;
+    markPersistenceWrite(SCENARIO_STORE_KEY, persisted);
+    return persisted;
+}
 
 // Helper to execute a single step (detached from request lifecycle)
 async function executeStep(step: ScenarioStep) {
@@ -47,11 +130,13 @@ async function executeStep(step: ScenarioStep) {
     }
 }
 
-export function scenarioListHandler(req: Request, res: Response) {
+export async function scenarioListHandler(req: Request, res: Response) {
+    await ensureScenarioCatalogHydrated();
     res.json(Array.from(scenarioStore.values()));
 }
 
-export function scenarioSaveHandler(req: Request, res: Response) {
+export async function scenarioSaveHandler(req: Request, res: Response) {
+    await ensureScenarioCatalogHydrated();
     const scenario = req.body as Scenario;
     
     // VALIDATION
@@ -60,11 +145,12 @@ export function scenarioSaveHandler(req: Request, res: Response) {
     if (scenario.steps.length > 50) return res.status(400).json({ error: "Too many steps" });
 
     // Validate each step
-    const validActions: ToolAction[] = [...VALID_SCENARIO_ACTIONS];
     const sanitizedSteps: ScenarioStep[] = [];
     for (const step of scenario.steps) {
-        if (!validActions.includes(step.action)) return res.status(400).json({ error: `Invalid action: ${step.action}` });
-        if (step.delayMs && typeof step.delayMs !== 'number') return res.status(400).json({ error: "Invalid delayMs" });
+        if (!isAllowedScenarioAction(step.action)) return res.status(400).json({ error: `Invalid action: ${step.action}` });
+        if (typeof step.delayMs !== "undefined" && typeof step.delayMs !== "number") {
+            return res.status(400).json({ error: "Invalid delayMs" });
+        }
         if (!step.params || typeof step.params !== "object" || Array.isArray(step.params)) {
             return res.status(400).json({ error: `Invalid params for action: ${step.action}` });
         }
@@ -96,11 +182,17 @@ export function scenarioSaveHandler(req: Request, res: Response) {
         createdAt: existing?.createdAt || new Date().toISOString()
     };
     scenarioStore.set(id, saved);
-    
+
+    const persisted = await persistScenarioCatalogQueued();
+    if (!persisted) {
+        logger.warn({ scenarioId: id }, "Scenario saved to memory but persistence write failed");
+    }
+
     res.json(saved);
 }
 
 export async function scenarioRunHandler(req: Request, res: Response) {
+    await ensureScenarioCatalogHydrated();
     const id = req.params.id;
     const scenario = scenarioStore.get(id);
     
@@ -165,7 +257,8 @@ export async function scenarioRunHandler(req: Request, res: Response) {
     });
 }
 
-export function scenarioRunStatusHandler(req: Request, res: Response) {
+export async function scenarioRunStatusHandler(req: Request, res: Response) {
+    await ensureScenarioCatalogHydrated();
     const scenarioId = req.params.id;
     const scenario = scenarioStore.get(scenarioId);
     if (!scenario) return res.status(404).json({ error: "Scenario not found" });

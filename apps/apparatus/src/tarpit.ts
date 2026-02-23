@@ -2,12 +2,46 @@ import { Request, Response, NextFunction } from "express";
 import { logger } from "./logger.js";
 import { broadcastTarpit } from "./sse-broadcast.js";
 import { isValidIpLiteral, normalizeIp } from "./utils/ip.js";
+import { cfg } from "./config.js";
+import { loadTarpitStateSync, writeTarpitState } from "./persistence/tarpit-state.js";
+import { markPersistenceHydrated, markPersistenceWrite, registerPersistenceStore } from "./persistence/status.js";
 
 const TRAP_PATHS = ["/wp-admin", "/.env", "/.git", "/admin.php"];
 export const blockedIps = new Set<string>();
+const TARPIT_STORE_KEY = "tarpitState";
 
 // Track when IPs were trapped for time-in-tarpit calculation
 const trapTimes: Map<string, number> = new Map();
+let tarpitPersistQueue: Promise<boolean> = Promise.resolve(true);
+
+registerPersistenceStore(TARPIT_STORE_KEY, cfg.tarpitStatePath);
+
+for (const entry of loadTarpitStateSync(cfg.tarpitStatePath)) {
+    blockedIps.add(entry.ip);
+    trapTimes.set(entry.ip, entry.trappedAt);
+}
+markPersistenceHydrated(TARPIT_STORE_KEY);
+
+function snapshotTarpitState() {
+    return Array.from(blockedIps).map((ip) => ({
+        ip,
+        trappedAt: trapTimes.get(ip) || Date.now(),
+    }));
+}
+
+function persistTarpitStateQueued() {
+    tarpitPersistQueue = tarpitPersistQueue.then(
+        () => writeTarpitState(cfg.tarpitStatePath, snapshotTarpitState()),
+        () => writeTarpitState(cfg.tarpitStatePath, snapshotTarpitState())
+    );
+
+    void tarpitPersistQueue.then((persisted) => {
+        markPersistenceWrite(TARPIT_STORE_KEY, persisted);
+        if (!persisted) {
+            logger.warn("Tarpit state persisted in memory only due to write failure");
+        }
+    });
+}
 
 export function tarpitListHandler(_req: Request, res: Response) {
     const now = Date.now();
@@ -28,6 +62,7 @@ export function tarpitReleaseHandler(req: Request, res: Response) {
     if (ip && ip !== "unknown" && blockedIps.has(ip)) {
         blockedIps.delete(ip);
         trapTimes.delete(ip);
+        persistTarpitStateQueued();
         logger.info({ ip }, "Tarpit: IP released");
         broadcastTarpit('released', ip);
         res.json({ status: "released", ip });
@@ -39,6 +74,7 @@ export function tarpitReleaseHandler(req: Request, res: Response) {
         const count = blockedIps.size;
         blockedIps.clear();
         trapTimes.clear();
+        persistTarpitStateQueued();
         ips.forEach(ip => broadcastTarpit('released', ip));
         logger.info({ count }, "Tarpit: All IPs released");
         res.json({ status: "cleared", count });
@@ -54,6 +90,7 @@ export function tarpitTrapHandler(req: Request, res: Response) {
     if (!blockedIps.has(ip)) {
         blockedIps.add(ip);
         trapTimes.set(ip, Date.now());
+        persistTarpitStateQueued();
         logger.warn({ ip }, "Tarpit: IP trapped via control API");
         broadcastTarpit("trapped", ip);
     }
@@ -79,6 +116,7 @@ export function tarpitMiddleware(req: Request, res: Response, next: NextFunction
         logger.warn({ ip, path: req.path }, "Honeypot Triggered! Activating Tarpit.");
         blockedIps.add(ip);
         trapTimes.set(ip, Date.now());
+        persistTarpitStateQueued();
         broadcastTarpit('trapped', ip);
         return enterTarpit(res);
     }
