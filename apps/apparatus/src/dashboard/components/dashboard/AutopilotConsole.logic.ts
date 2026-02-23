@@ -1,4 +1,4 @@
-import type { SessionContext, SessionContextAsset, SessionContextRelation } from '../../hooks/useAutopilot';
+import type { ActionEntry, SessionContext, SessionContextAsset, SessionContextRelation } from '../../hooks/useAutopilot';
 
 const ACQUIRED_ASSETS_LIMIT = 14;
 const RELATION_STRIP_LIMIT = 16;
@@ -14,6 +14,54 @@ export interface AutopilotMemoryPanelModel {
   breakSignals: string[];
   openedPaths: string[];
   preconditions: string[];
+}
+
+export interface EvasionManeuverEntry {
+  id: string;
+  at: string;
+  ok: boolean;
+  tool: string;
+  triggerSignal: string;
+  countermeasure: string | null;
+  rationale: string;
+}
+
+export interface AutopilotEvasionTelemetryModel {
+  blockedSignals: string[];
+  blockedSignalEvents: number;
+  evasionManeuvers: EvasionManeuverEntry[];
+  successfulEvasions: number;
+  stalledEvasions: number;
+}
+
+export function statusVariant(status?: string): 'neutral' | 'warning' | 'danger' | 'success' | 'primary' {
+  if (!status) return 'neutral';
+  if (status === 'running') return 'primary';
+  if (status === 'stopping') return 'warning';
+  if (status === 'failed') return 'danger';
+  if (status === 'completed') return 'success';
+  if (status === 'stopped') return 'warning';
+  return 'neutral';
+}
+
+export function toggleAllowedTool(current: string[], tool: string): string[] {
+  if (current.includes(tool)) {
+    const next = current.filter((item) => item !== tool);
+    return next.length > 0 ? next : current;
+  }
+  return [...current, tool];
+}
+
+export function clampMaxIterations(value: number): number {
+  return Math.max(1, Math.min(30, Number(value) || 1));
+}
+
+export function clampIntervalMs(value: number): number {
+  return Math.max(0, Math.min(30000, Number(value) || 0));
+}
+
+export function isMissionStartDisabled(active: boolean, objective: string): boolean {
+  return active || !objective.trim();
 }
 
 export function deriveAutopilotMemoryPanelModel(
@@ -33,6 +81,60 @@ export function deriveAutopilotMemoryPanelModel(
     breakSignals: objectiveProgress?.breakSignals || [],
     openedPaths: objectiveProgress?.openedPaths || [],
     preconditions: objectiveProgress?.preconditionsMet || [],
+  };
+}
+
+function mapBreakSignalToDefenseSignal(value: string) {
+  const normalized = value.trim();
+  if (!normalized.startsWith('defense-signal:')) return null;
+  const signal = normalized.slice('defense-signal:'.length).trim();
+  return signal ? signal : null;
+}
+
+export function deriveAutopilotEvasionTelemetryModel(input: {
+  breakSignals?: string[] | null;
+  actions?: ActionEntry[] | null;
+}): AutopilotEvasionTelemetryModel {
+  const breakSignals = input.breakSignals || [];
+  const actions = input.actions || [];
+
+  const blockedSignalEvents = breakSignals
+    .map(mapBreakSignalToDefenseSignal)
+    .filter((signal): signal is string => Boolean(signal))
+    .length;
+
+  const blockedSignals = Array.from(
+    new Set(
+      breakSignals
+        .map(mapBreakSignalToDefenseSignal)
+        .filter((signal): signal is string => Boolean(signal))
+    )
+  );
+
+  const evasionManeuvers = [...actions]
+    .filter((entry) => Boolean(entry.maneuver))
+    .map((entry) => ({
+      countermeasure: typeof entry.maneuver?.countermeasure === 'string' && entry.maneuver.countermeasure.trim()
+        ? entry.maneuver.countermeasure.trim()
+        : null,
+      id: entry.id,
+      at: entry.at,
+      ok: entry.ok,
+      tool: entry.tool,
+      triggerSignal: entry.maneuver?.triggerSignal || 'unknown',
+      rationale: entry.maneuver?.rationale || 'No rationale provided.',
+    }))
+    .sort((left, right) => timestampOrZero(right.at) - timestampOrZero(left.at));
+
+  const successfulEvasions = evasionManeuvers.filter((entry) => entry.countermeasure !== null && entry.ok).length;
+  const stalledEvasions = evasionManeuvers.filter((entry) => entry.countermeasure === null || !entry.ok).length;
+
+  return {
+    blockedSignals,
+    blockedSignalEvents,
+    evasionManeuvers,
+    successfulEvasions,
+    stalledEvasions,
   };
 }
 
