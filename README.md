@@ -1,5 +1,7 @@
 # Apparatus
 
+![Apparatus Banner](docs/assets/apparatus-banner.png)
+
 > All-in-one cybersecurity testing and simulation lab platform for red teams, chaos engineering, defense validation, and security tool testing.
 
 ![Node.js](https://img.shields.io/badge/Node.js-v23-green)
@@ -20,8 +22,6 @@ Apparatus is a **comprehensive security testing platform** that simulates real-w
 - 📚 **Training** - Security tool evaluation, incident response drills, threat intelligence
 
 Think of it as **OWASP WebGoat meets Chaos Monkey meets a full-featured security lab**—all in one platform.
-
-![Apparatus Banner](docs/assets/apparatus-banner.png)
 
 ---
 
