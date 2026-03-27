@@ -47,8 +47,8 @@ aps-dev-up session="aps":
 	if ! TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: dashboard-dev( |$)'; then
 	TMUX_SESSION={{session}} tx new dashboard-dev >/dev/null
 	fi
-	TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/server dev"
-	TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/dashboard dev --force"
+	TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @atlascrew/apparatus dev"
+	TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @atlascrew/apparatus-dashboard dev --force"
 	echo "Live reload started in tmux session '{{session}}': server-dev + dashboard-dev"
 
 # Show tx/tmux status for live-reload windows
@@ -87,8 +87,8 @@ aps-dev-restart session="aps":
 	if ! TMUX_SESSION={{session}} tx list | grep -Eq '^[0-9]+: dashboard-dev( |$)'; then
 	TMUX_SESSION={{session}} tx new dashboard-dev >/dev/null
 	fi
-	TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/server dev"
-	TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @apparatus/dashboard dev --force"
+	TMUX_SESSION={{session}} tx send server-dev "cd {{justfile_directory()}} && pnpm --filter @atlascrew/apparatus dev"
+	TMUX_SESSION={{session}} tx send dashboard-dev "cd {{justfile_directory()}} && pnpm --filter @atlascrew/apparatus-dashboard dev --force"
 	echo "Live reload restarted in tmux session '{{session}}'"
 
 # ── Test ─────────────────────────────────────────────────────
@@ -156,6 +156,87 @@ unlink-tools *args:
 # Show the Nx dependency graph
 graph:
     pnpm nx graph
+
+# ── Release ────────────────────────────────────────────────
+#
+# Per-package versioning. Each package has its own version and tag.
+#   Tag format: <pkg>-v<semver>  (e.g. apparatus-v1.0.0, apparatus-client-v0.9.1)
+#   Pushing a tag triggers the matching CI publish job.
+#
+# Package map (short name → package.json path):
+_pkg_apparatus         := "apps/apparatus/package.json"
+_pkg_apparatus_client  := "libs/client/package.json"
+_pkg_apparatus_cli     := "apps/cli/package.json"
+_pkg_apparatus_dash    := "apps/apparatus/src/dashboard/package.json"
+
+# Show current versions for all packages
+versions:
+	@echo "apparatus        $(jq -r .version {{_pkg_apparatus}})"
+	@echo "apparatus-client $(jq -r .version {{_pkg_apparatus_client}})"
+	@echo "apparatus-cli    $(jq -r .version {{_pkg_apparatus_cli}})"
+	@echo "apparatus-dash   $(jq -r .version {{_pkg_apparatus_dash}})"
+
+# Show version for a specific package
+version pkg="apparatus":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	case "{{pkg}}" in
+	  apparatus)        jq -r .version {{_pkg_apparatus}} ;;
+	  apparatus-client) jq -r .version {{_pkg_apparatus_client}} ;;
+	  apparatus-cli)    jq -r .version {{_pkg_apparatus_cli}} ;;
+	  apparatus-dash)   jq -r .version {{_pkg_apparatus_dash}} ;;
+	  *) echo "Unknown package: {{pkg}}. Use: apparatus, apparatus-client, apparatus-cli, apparatus-dash"; exit 1 ;;
+	esac
+
+# Bump a package version (just bump <pkg> [patch|minor|major])
+bump pkg="apparatus" level="patch":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	case "{{pkg}}" in
+	  apparatus)        files="{{_pkg_apparatus}}" ;;
+	  apparatus-client) files="{{_pkg_apparatus_client}}" ;;
+	  apparatus-cli)    files="{{_pkg_apparatus_cli}}" ;;
+	  apparatus-dash)   files="{{_pkg_apparatus_dash}}" ;;
+	  *) echo "Unknown package: {{pkg}}. Use: apparatus, apparatus-client, apparatus-cli, apparatus-dash"; exit 1 ;;
+	esac
+	current=$(jq -r .version $files)
+	IFS='.' read -r major minor patch <<< "$current"
+	case "{{level}}" in
+	  patch) patch=$((patch + 1)) ;;
+	  minor) minor=$((minor + 1)); patch=0 ;;
+	  major) major=$((major + 1)); minor=0; patch=0 ;;
+	  *) echo "Usage: just bump <pkg> [patch|minor|major]"; exit 1 ;;
+	esac
+	next="${major}.${minor}.${patch}"
+	jq --arg v "$next" '.version = $v' "$files" > "$files.tmp" && mv "$files.tmp" "$files"
+	echo "{{pkg}}: $current → $next"
+
+# Tag and push to trigger npm publish for a package
+release pkg="apparatus":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	case "{{pkg}}" in
+	  apparatus)        file="{{_pkg_apparatus}}" ;;
+	  apparatus-client) file="{{_pkg_apparatus_client}}" ;;
+	  apparatus-cli)    file="{{_pkg_apparatus_cli}}" ;;
+	  *) echo "Unknown publishable package: {{pkg}}. Use: apparatus, apparatus-client, apparatus-cli"; exit 1 ;;
+	esac
+	version=$(jq -r .version "$file")
+	tag="{{pkg}}-v${version}"
+	if git rev-parse "$tag" >/dev/null 2>&1; then
+	  echo "Error: tag $tag already exists. Bump first: just bump {{pkg}} [patch|minor|major]"
+	  exit 1
+	fi
+	echo "Tagging $tag..."
+	git tag "$tag"
+	git push origin "$tag"
+	echo "Pushed $tag — npm publish workflow triggered"
+
+# Release all publishable packages at their current versions
+release-all:
+	just release apparatus
+	just release apparatus-client
+	just release apparatus-cli
 
 # ── Docs ───────────────────────────────────────
 
