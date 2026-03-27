@@ -24,7 +24,7 @@ This plan has been partially implemented under the **Autopilot** surface.
 - Client and CLI surfaces exist for autopilot controls.
 
 ### Still Missing from Original Plan
-- Standalone shared package extraction (`@apparatus/threat-intel-apparatus-redteam-ai`).
+- Standalone shared package extraction (`@atlascrew/threat-intel-apparatus-redteam-ai`).
 - Swagger/OpenAPI attack-surface parser feeding the model prompt.
 - Orchestrator-level multi-agent integration.
 - Original naming surfaces:
@@ -37,7 +37,7 @@ This plan has been partially implemented under the **Autopilot** surface.
 
 ## Architecture
 
-### 1. Library Core (`@apparatus/threat-intel-apparatus-redteam-ai`)
+### 1. Library Core (`@atlascrew/threat-intel-apparatus-redteam-ai`)
 This module should be decoupled from Apparatus to allow usage in other tools (Orchestrator, CLI).
 
 **Interfaces:**

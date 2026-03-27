@@ -177,14 +177,14 @@ The `apparatus` CLI provides command-line access to all server APIs plus an inte
 
 ```bash
 pnpm build
-pnpm link --global --filter @apparatus/cli
+pnpm link --global --filter @atlascrew/apparatus-cli
 ```
 
 **Or run directly without installing:**
 
 ```bash
 # From the repo root
-pnpm --filter @apparatus/cli start -- health
+pnpm --filter @atlascrew/apparatus-cli start -- health
 
 # Or via npx after building
 cd apps/cli && npx . health

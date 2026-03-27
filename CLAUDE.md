@@ -38,14 +38,14 @@ pnpm lint                     # eslint all packages
 **Monorepo layout** — pnpm workspaces + Nx for task orchestration and caching.
 
 ```
-apps/apparatus/   → @apparatus/server  (Express server, 50+ endpoints, multi-protocol)
-apps/cli/         → @apparatus/cli     (Commander.js CLI with REPL)
-libs/client/      → @apparatus/client  (HTTP client library, 16 API categories)
+apps/apparatus/   → @atlascrew/apparatus  (Express server, 50+ endpoints, multi-protocol)
+apps/cli/         → @atlascrew/apparatus-cli     (Commander.js CLI with REPL)
+libs/client/      → @atlascrew/apparatus-client  (HTTP client library, 16 API categories)
 ```
 
 **Dependency graph:** CLI depends on client (`workspace:*`). Server is standalone. Client is the shared library consumed by CLI and dashboard.
 
-**Module system:** All ESM (`"type": "module"`). Server imports use `.js` extensions. Cross-package imports use `@apparatus/client` path alias (configured in `tsconfig.base.json`).
+**Module system:** All ESM (`"type": "module"`). Server imports use `.js` extensions. Cross-package imports use `@atlascrew/apparatus-client` path alias (configured in `tsconfig.base.json`).
 
 **Build tools:** Server uses plain `tsc`. CLI and client use `tsup` (ESM output, node22 target). CLI bundles the client via `noExternal` and prepends a shebang.
 
@@ -64,7 +64,7 @@ libs/client/      → @apparatus/client  (HTTP client library, 16 API categories
 
 **TUI:** Terminal dashboard at `src/tui/` using blessed + blessed-contrib. Run with `pnpm tui`. Architecture: `dashboard.ts` (main), `api-client.ts` (polling), `sse-client.ts` (real-time), `core/store.ts` (state), `widgets/` (18 widget types).
 
-**Web Dashboard:** React SPA at `src/dashboard/` (Vite + Tailwind + React Router). Built to `dist-dashboard/`, served at `/dashboard`. Uses `@apparatus/client`.
+**Web Dashboard:** React SPA at `src/dashboard/` (Vite + Tailwind + React Router). Built to `dist-dashboard/`, served at `/dashboard`. Uses `@atlascrew/apparatus-client`.
 
 ## Client Library (libs/client)
 
@@ -88,4 +88,33 @@ libs/client/      → @apparatus/client  (HTTP client library, 16 API categories
 - Vitest for tests (`*.test.ts`), globals enabled, v8 coverage
 - Nx caching enabled for build/test/lint/type-check targets
 - `dependsOn: ["^build"]` ensures client builds before CLI
-- Only `@apparatus/client` is publishable; server and CLI are private
+- All three packages (`@atlascrew/apparatus`, `@atlascrew/apparatus-client`, `@atlascrew/apparatus-cli`) publish to npm under the `@atlascrew` org
+
+<!-- BACKLOG.MD MCP GUIDELINES START -->
+
+<CRITICAL_INSTRUCTION>
+
+## BACKLOG WORKFLOW INSTRUCTIONS
+
+This project uses Backlog.md MCP for all task and project management activities.
+
+**CRITICAL GUIDANCE**
+
+- If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
+- If your client only supports tools or the above request fails, call `backlog.get_workflow_overview()` tool to load the tool-oriented overview (it lists the matching guide tools).
+
+- **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
+- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
+- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+
+These guides cover:
+- Decision framework for when to create tasks
+- Search-first workflow to avoid duplicates
+- Links to detailed guides for task creation, execution, and finalization
+- MCP tools reference
+
+You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
+
+</CRITICAL_INSTRUCTION>
+
+<!-- BACKLOG.MD MCP GUIDELINES END -->

@@ -135,11 +135,11 @@ This initiative extends the existing red-team memory pipeline and planner loop s
 
 ## Verification Gates
 - Backend targeted tests:
-  - `pnpm --filter @apparatus/server test -- test/redteam.decision.test.ts test/redteam.planner-payload.test.ts test/redteam.memory-extraction.test.ts`
+  - `pnpm --filter @atlascrew/apparatus test -- test/redteam.decision.test.ts test/redteam.planner-payload.test.ts test/redteam.memory-extraction.test.ts`
 - Contract/state tests:
-  - `pnpm --filter @apparatus/server test -- test/autopilot.test.ts test/autopilot.memory-states.test.ts`
+  - `pnpm --filter @atlascrew/apparatus test -- test/autopilot.test.ts test/autopilot.memory-states.test.ts`
 - Type safety:
-  - `pnpm --filter @apparatus/server exec tsc --noEmit`
+  - `pnpm --filter @atlascrew/apparatus exec tsc --noEmit`
 - Review/audit:
   - `scripts/specialist-review.sh --git -- apps/apparatus/src/ai/redteam.ts apps/apparatus/src/ai/report-store.ts apps/apparatus/src/dashboard/components/dashboard/AutopilotConsole.tsx`
   - `scripts/test-review-request.sh apps/apparatus/src/ai --tests apps/apparatus/test`

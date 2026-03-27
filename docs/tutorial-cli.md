@@ -46,7 +46,7 @@ The CLI is built-in to Apparatus. Run it with:
 
 ```bash
 cd /path/to/apparatus
-npx @apparatus/cli --help
+npx @atlascrew/apparatus-cli --help
 ```
 
 Or if installed globally:
@@ -405,7 +405,7 @@ jobs:
           node-version: '23'
 
       - name: Install Apparatus CLI
-        run: npm install -g @apparatus/cli
+        run: npm install -g @atlascrew/apparatus-cli
 
       - name: Wait for services
         run: |
@@ -452,7 +452,7 @@ security_test:
   services:
     - docker:dind
   script:
-    - npm install -g @apparatus/cli
+    - npm install -g @atlascrew/apparatus-cli
     - apparatus health --url http://apparatus:8090
     - apparatus attack xss
         --target http://myapp:3000
@@ -604,10 +604,10 @@ apparatus health  # Uses env vars
 **Solution:**
 ```bash
 # Install globally
-npm install -g @apparatus/cli
+npm install -g @atlascrew/apparatus-cli
 
 # Or use npx
-npx @apparatus/cli --help
+npx @atlascrew/apparatus-cli --help
 ```
 
 ---

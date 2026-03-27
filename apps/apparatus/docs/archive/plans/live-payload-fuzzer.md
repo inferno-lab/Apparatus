@@ -129,8 +129,8 @@
 - Type check and scoped test commands required before milestone completion.
 
 ## Verification Commands
-- `pnpm --filter @apparatus/server exec tsc --noEmit`
-- `pnpm --filter @apparatus/server test -- test/advanced.defense.test.ts`
+- `pnpm --filter @atlascrew/apparatus exec tsc --noEmit`
+- `pnpm --filter @atlascrew/apparatus test -- test/advanced.defense.test.ts`
 - Add focused fuzzer test file once M1 implementation lands.
 
 ## Milestone Exit Criteria

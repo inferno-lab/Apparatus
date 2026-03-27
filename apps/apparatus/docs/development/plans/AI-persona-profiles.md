@@ -132,11 +132,11 @@ Dependency chain:
 
 ## Verification Gates
 - Backend contract/decision tests:
-  - `pnpm --filter @apparatus/server test -- test/autopilot.test.ts test/redteam.decision.test.ts test/redteam.planner-payload.test.ts`
+  - `pnpm --filter @atlascrew/apparatus test -- test/autopilot.test.ts test/redteam.decision.test.ts test/redteam.planner-payload.test.ts`
 - Dashboard selector/component tests:
-  - `pnpm --filter @apparatus/server test -- src/dashboard/components/dashboard/AutopilotConsole.component.test.tsx`
+  - `pnpm --filter @atlascrew/apparatus test -- src/dashboard/components/dashboard/AutopilotConsole.component.test.tsx`
 - Type safety:
-  - `pnpm --filter @apparatus/server exec tsc --noEmit`
+  - `pnpm --filter @atlascrew/apparatus exec tsc --noEmit`
   - `pnpm --dir apps/apparatus/src/dashboard exec tsc --noEmit`
 
 ## Risks and Mitigations
