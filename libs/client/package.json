@@ -1,6 +1,6 @@
 {
-  "name": "@atlascrew/apparatus-client",
-  "version": "0.9.1",
+  "name": "@atlascrew/apparatus-sdk",
+  "version": "0.9.2",
   "description": "TypeScript API client for Apparatus",
   "author": "Nicholas Crew Ferguson <nick@atlascrew.dev> (https://atlascrew.dev)",
   "keywords": [
