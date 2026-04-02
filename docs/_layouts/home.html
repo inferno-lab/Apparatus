@@ -45,22 +45,19 @@ layout: default
     <h2>Quick Start</h2>
     <div class="quickstart-options">
       <div class="quickstart-option">
-        <h4>Docker Compose</h4>
-        <pre><code>git clone https://github.com/NickCrew/apparatus.git
-cd apparatus
-docker compose --profile chimera up -d</code></pre>
+        <h4>npm</h4>
+        <pre><code>npm install -g @atlascrew/apparatus
+apparatus</code></pre>
+      </div>
+      <div class="quickstart-option">
+        <h4>Docker</h4>
+        <pre><code>docker run -p 8090:8090 nickcrew/apparatus</code></pre>
       </div>
       <div class="quickstart-option">
         <h4>From Source</h4>
         <pre><code>git clone https://github.com/NickCrew/apparatus.git
-cd apparatus
-pnpm install &amp;&amp; pnpm build
-pnpm dev:server</code></pre>
-      </div>
-      <div class="quickstart-option">
-        <h4>CLI</h4>
-        <pre><code>npm install -g @atlascrew/apparatus-cli
-apparatus --url http://localhost:8090 status</code></pre>
+cd apparatus &amp;&amp; pnpm install &amp;&amp; pnpm build
+pnpm start</code></pre>
       </div>
     </div>
   </section>

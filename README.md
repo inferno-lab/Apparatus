@@ -98,97 +98,36 @@ Think of it as **OWASP WebGoat meets Chaos Monkey meets a full-featured security
 
 ---
 
-## Quick Start
+## Installation
 
-### Prerequisites
-- Node.js 23+
-- pnpm (or npm/yarn)
-- Optional: tcpdump (for PCAP capture), Docker (for containerized deployment)
-
-### Option 1: Full Lab with Chimera (Recommended for Testing)
+### npm (recommended)
 
 ```bash
-# Clone both repositories
-cd ~/Developer
-git clone https://github.com/NickCrew/apparatus.git
-git clone https://github.com/NickCrew/Chimera.git
-
-# Start complete testing environment (Apparatus + Chimera)
-cd apparatus
-docker compose --profile chimera up
-
-# Or start Apparatus only
-docker compose up
+# Server
+npm install -g @atlascrew/apparatus
+apparatus
 ```
 
-This starts:
-- **Apparatus**: http://localhost:8090/dashboard (testing platform)
-- **VulnWeb**: http://localhost:3000 (vulnerable web app) — `chimera` profile only
-- **VulnAPI**: http://localhost:5000 (vulnerable API) — `chimera` profile only
+Starts the full Apparatus platform on **http://localhost:8090** — HTTP/1.1, HTTP/2, gRPC, WebSocket, dashboard, and all protocol servers in a single process.
 
-→ See [Quick Reference Guide](docs/quick-reference.md) for usage examples
-
-### Option 2: Just Apparatus
+### Docker
 
 ```bash
-# Clone the repository
-git clone https://github.com/NickCrew/apparatus.git
-cd apparatus
-
-# Install dependencies
-pnpm install
-
-# Generate TLS certificates (self-signed)
-mkdir -p certs
-openssl req -x509 -newkey rsa:2048 -keyout certs/server.key \
-  -out certs/server.crt -days 365 -nodes -subj "/CN=localhost"
-
-# Build the project
-pnpm build
-
-# Start the server
-pnpm start
+docker run -p 8090:8090 -p 8443:8443 -p 50051:50051 nickcrew/apparatus
 ```
 
-The server will start on:
-- **HTTP/1.1**: http://localhost:8090
-- **Dashboard**: http://localhost:8090/dashboard
-- **HTTP/2 TLS**: https://localhost:8443
-- **gRPC**: localhost:50051
-- **WebSocket**: ws://localhost:8090/ws
+Also available from GitHub Container Registry: `ghcr.io/nickcrew/apparatus`.
 
-### Option 3: Docker (Apparatus Only)
-
-```bash
-# Build Docker image
-docker build -t apparatus:latest ./apps/apparatus
-
-# Run container
-docker run -p 8090:8090 -p 8443:8443 -p 50051:50051 apparatus:latest
-
-# Access dashboard at http://localhost:8090/dashboard
-```
+Open **http://localhost:8090/dashboard** to access the web UI.
 
 ### CLI
 
-The `apparatus` CLI provides command-line access to all server APIs plus an interactive REPL.
-
-**Install from the monorepo:**
-
 ```bash
-pnpm build
-pnpm link --global --filter @atlascrew/apparatus-cli
+npm install -g @atlascrew/apparatus-cli
+apparatus health
 ```
 
-**Or run directly without installing:**
-
-```bash
-# From the repo root
-pnpm --filter @atlascrew/apparatus-cli start -- health
-
-# Or via npx after building
-cd apps/cli && npx . health
-```
+The CLI provides command-line access to all server APIs plus an interactive REPL.
 
 **Connect to a running server:**
 
@@ -231,6 +170,81 @@ apparatus repl
 **Global options:** `-u <url>`, `-j/--json`, `-v/--verbose`, `--no-color`, `--config <file>`
 
 **Config file:** `~/.apparatus/config.json` — persists base URL, timeout, format preferences.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST` | `0.0.0.0` | Bind address |
+| `PORT_HTTP1` | `8090` | HTTP/1.1 port |
+| `PORT_HTTP2` | `8443` | HTTP/2 TLS port |
+| `DEMO_MODE` | `false` | Enable all dangerous endpoints without localhost check |
+| `TLS_KEY` | `certs/server.key` | TLS private key path |
+| `TLS_CRT` | `certs/server.crt` | TLS certificate path |
+| `ANTHROPIC_API_KEY` | — | Claude API key (for AI honeypot and autopilot) |
+| `ENABLE_COMPRESSION` | `true` | Enable gzip compression |
+| `BODY_LIMIT` | `50mb` | Request body size limit |
+| `CLUSTER_SHARED_SECRET` | — | Cluster authentication token |
+
+---
+
+## Integration with Chimera
+
+Apparatus works seamlessly with **[Chimera](https://github.com/NickCrew/Chimera)** — a vulnerable web application and REST API with 450+ endpoints and 12 UIs that provides realistic attack targets for security testing.
+
+```bash
+# Clone both repositories
+cd ~/Developer
+git clone https://github.com/NickCrew/apparatus.git
+git clone https://github.com/NickCrew/Chimera.git
+
+# Start the full lab (Apparatus + Chimera)
+cd apparatus
+docker compose --profile chimera up
+```
+
+This starts:
+- **Apparatus**: http://localhost:8090/dashboard (testing platform)
+- **VulnWeb**: http://localhost:3000 (vulnerable web app) — `chimera` profile only
+- **VulnAPI**: http://localhost:5000 (vulnerable API) — `chimera` profile only
+
+Without the `chimera` profile, only Apparatus starts: `docker compose up`.
+
+---
+
+## Development
+
+### Prerequisites
+
+| Requirement | Version |
+|-------------|---------|
+| Node.js | 23+ |
+| pnpm | latest |
+
+Optional: `tcpdump` (for PCAP capture), Docker (for containerized deployment).
+
+### Run from source
+
+```bash
+git clone https://github.com/NickCrew/apparatus.git
+cd apparatus
+pnpm install
+
+# Generate TLS certificates (self-signed)
+mkdir -p certs
+openssl req -x509 -newkey rsa:2048 -keyout certs/server.key \
+  -out certs/server.crt -days 365 -nodes -subj "/CN=localhost"
+
+pnpm build
+pnpm start
+```
+
+The server will start on:
+- **HTTP/1.1**: http://localhost:8090
+- **Dashboard**: http://localhost:8090/dashboard
+- **HTTP/2 TLS**: https://localhost:8443
+- **gRPC**: localhost:50051
+- **WebSocket**: ws://localhost:8090/ws
 
 ---
 
@@ -384,27 +398,7 @@ apparatus/
 
 ## Configuration
 
-### Environment Variables
-
-```bash
-# Server
-PORT_HTTP1=8090                 # HTTP/1.1 port
-PORT_HTTP2=8443                 # HTTP/2 TLS port
-HOST=0.0.0.0                    # Bind address
-
-# TLS Certificates
-TLS_KEY=certs/server.key        # Private key path
-TLS_CRT=certs/server.crt        # Certificate path
-
-# Features
-DEMO_MODE=true                  # Enable all dangerous endpoints
-ENABLE_COMPRESSION=true         # Enable gzip compression
-BODY_LIMIT=50mb                 # Request body size limit
-CLUSTER_SHARED_SECRET=mysecret  # Cluster auth token
-
-# AI/LLM (for honeypot and autopilot)
-ANTHROPIC_API_KEY=sk-...       # Claude API key
-```
+See [Environment Variables](#environment-variables) in the Installation section for the full configuration reference.
 
 ### Feature Toggles
 
@@ -535,20 +529,6 @@ Contributions are welcome! Areas for expansion:
 - [ ] Dashboard visualizations
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## Related Projects
-
-Apparatus is designed to work seamlessly with **Chimera**:
-
-- **[Chimera](../Chimera)** - Vulnerable web application and REST API with 450+ endpoints and 12 UIs
-  - Provides realistic attack targets for security testing
-  - Includes XSS, SQLi, CSRF, auth bypass, insecure deserialization vulnerabilities
-  - Runs alongside Apparatus via `docker compose --profile chimera up`
-  - Independent monorepo for separate development and deployment
-
-Use `docker compose --profile chimera up` in Apparatus to run both platforms together. Without the profile, only Apparatus starts.
 
 ---
 

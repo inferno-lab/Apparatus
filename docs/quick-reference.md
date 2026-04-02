@@ -3,25 +3,87 @@
 > 📚 **New to Apparatus?** Start with the [Documentation Navigator](NAVIGATOR.md) to find what you need.
 > 💡 **Visual Learner?** Check the inline diagrams in [Architecture Guide](architecture.md) and [Dashboard Tutorial](tutorial-dashboard.md).
 
-## Starting Everything
+## Getting Started
 
-### Full Lab (Apparatus + Chimera)
+Choose the method that fits your needs — npm and Docker are the fastest paths; source installs give you the full development environment.
+
+### Option A: Install from npm (recommended)
+
+Requires **Node.js 23+**.
 
 ```bash
+npm install -g @atlascrew/apparatus
+apparatus
+```
+
+Open **http://localhost:8090/dashboard**. The server, dashboard, and all protocol endpoints start in a single process.
+
+### Option B: Run with Docker
+
+```bash
+docker run -p 8090:8090 -p 8443:8443 -p 50051:50051 nickcrew/apparatus
+```
+
+Open **http://localhost:8090/dashboard**. Same platform as the npm package.
+
+Pass environment variables with `-e`:
+
+```bash
+docker run -p 8090:8090 -p 8443:8443 \
+  -e DEMO_MODE=true \
+  -e ANTHROPIC_API_KEY=sk-... \
+  nickcrew/apparatus
+```
+
+Also available from GitHub Container Registry: `ghcr.io/nickcrew/apparatus`.
+
+### Option C: Run from Source
+
+Use this option when you want to develop Apparatus itself or need fine-grained control over individual components.
+
+**Prerequisites:** Node.js 23+, pnpm
+
+```bash
+git clone https://github.com/NickCrew/apparatus.git
 cd apparatus
-docker-compose up
+pnpm install
+
+# Generate TLS certificates (self-signed)
+mkdir -p certs
+openssl req -x509 -newkey rsa:2048 -keyout certs/server.key \
+  -out certs/server.crt -days 365 -nodes -subj "/CN=localhost"
+
+pnpm build
+pnpm start
+```
+
+### Option D: Full Lab with Chimera
+
+Run Apparatus alongside [Chimera](https://github.com/NickCrew/Chimera) (vulnerable web app + API) for a complete testing environment:
+
+```bash
+git clone https://github.com/NickCrew/apparatus.git
+git clone https://github.com/NickCrew/Chimera.git
+cd apparatus
+docker compose --profile chimera up
 ```
 
 Wait for all services to be healthy (30-60 seconds).
 
-### Just Apparatus
+### Environment Variables
 
-```bash
-cd apparatus
-pnpm install
-pnpm build
-pnpm start
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST` | `0.0.0.0` | Bind address |
+| `PORT_HTTP1` | `8090` | HTTP/1.1 port |
+| `PORT_HTTP2` | `8443` | HTTP/2 TLS port |
+| `DEMO_MODE` | `false` | Enable all dangerous endpoints without localhost check |
+| `TLS_KEY` | `certs/server.key` | TLS private key path |
+| `TLS_CRT` | `certs/server.crt` | TLS certificate path |
+| `ANTHROPIC_API_KEY` | — | Claude API key (for AI honeypot and autopilot) |
+| `ENABLE_COMPRESSION` | `true` | Enable gzip compression |
+| `BODY_LIMIT` | `50mb` | Request body size limit |
+| `CLUSTER_SHARED_SECRET` | — | Cluster authentication token |
 
 ---
 
