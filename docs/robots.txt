@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://apparatus.atlascrew.dev/sitemap.xml
